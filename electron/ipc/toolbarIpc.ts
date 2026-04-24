@@ -48,7 +48,7 @@ export function registerToolbarIpc(): void {
         // Position popup at toolbar location (get bounds before hiding).
         const tbBounds = getToolbarBounds();
         const origin = tbBounds
-          ? { x: tbBounds.x, y: tbBounds.y + tbBounds.height + 4 }
+          ? { x: tbBounds.x, y: tbBounds.y }
           : { x: 0, y: 0 };
         createPopupWindow({ action: actionId, text, streamId }, origin);
         hideToolbar();

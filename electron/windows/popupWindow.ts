@@ -27,6 +27,8 @@ export function createPopupWindow(
     x,
     y,
     frame: false,
+    transparent: true,
+    hasShadow: false,
     alwaysOnTop: false,
     resizable: true,
     minWidth: 300,
