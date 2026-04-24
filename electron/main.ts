@@ -7,6 +7,7 @@ import { registerLlmIpc } from './ipc/llm';
 import { registerSkillsIpc } from './ipc/skills';
 import { registerSettingsIpc } from './ipc/settings';
 import { registerPopupIpc } from './ipc/popupIpc';
+import { registerToolbarIpc } from './ipc/toolbarIpc';
 import { initSelectionIpc, syncSelectionConfig, teardownSelectionIpc } from './ipc/selectionIpc';
 import { SkillStore } from './skills/loader';
 import { McpClientManager } from './mcp/client';
@@ -125,9 +126,10 @@ app.whenReady().then(async () => {
   registerSkillsIpc(skills);
   registerSettingsIpc();
   registerPopupIpc();
+  registerToolbarIpc();
 
   createWindow();
-  initSelectionIpc(() => mainWindow);
+  initSelectionIpc();
   syncSelectionConfig();
 });
 

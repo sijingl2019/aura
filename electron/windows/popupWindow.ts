@@ -17,9 +17,9 @@ export function createPopupWindow(
   const W = 420;
   const H = 400;
 
-  // Position popup just below/right of cursor, clamped to display
-  const x = Math.min(Math.max(cursor.x + 12, bounds.x), bounds.x + bounds.width - W);
-  const y = Math.min(Math.max(cursor.y + 12, bounds.y), bounds.y + bounds.height - H);
+  // cursor is the anchor point (already offset by caller); clamp to display
+  const x = Math.min(Math.max(cursor.x, bounds.x), bounds.x + bounds.width - W);
+  const y = Math.min(Math.max(cursor.y, bounds.y), bounds.y + bounds.height - H);
 
   const popup = new BrowserWindow({
     width: W,
@@ -40,8 +40,9 @@ export function createPopupWindow(
     },
   });
 
-  pendingParams.set(popup.webContents.id, params);
-  popup.on('closed', () => pendingParams.delete(popup.webContents.id));
+  const wcId = popup.webContents.id;
+  pendingParams.set(wcId, params);
+  popup.on('closed', () => pendingParams.delete(wcId));
 
   if (VITE_DEV_SERVER_URL) {
     void popup.loadURL(`${VITE_DEV_SERVER_URL}#/popup`);

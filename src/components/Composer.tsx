@@ -3,7 +3,6 @@ import type { DefaultModelRef, SkillListItem } from '@shared/types';
 import { abortStream, sendMessage } from '@/lib/ipc';
 import { useStreamingStore } from '@/stores/streaming';
 import { useConversationsStore } from '@/stores/conversations';
-import { useUiStore } from '@/stores/ui';
 import { ModelSwitcher } from './ModelSwitcher';
 
 interface ComposerProps {
@@ -22,8 +21,6 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
   const streaming = useStreamingStore();
   const setConversationModel = useConversationsStore((s) => s.setConversationModel);
   const isStreaming = streaming.streamId !== null;
-  const pendingAction = useUiStore((s) => s.pendingSelectionAction);
-  const clearPendingAction = useUiStore((s) => s.setPendingSelectionAction);
 
   useEffect(() => {
     window.api.skills.list().then(setSkills).catch(() => setSkills([]));
@@ -32,13 +29,6 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
   useEffect(() => {
     if (conversationId) setPendingModel(null);
   }, [conversationId]);
-
-  useEffect(() => {
-    if (!pendingAction) return;
-    setInput(pendingAction.prompt);
-    clearPendingAction(null);
-    setTimeout(() => textareaRef.current?.focus(), 0);
-  }, [pendingAction, clearPendingAction]);
 
   const activeSkill = skills.find((s) => s.id === activeSkillId) ?? null;
 

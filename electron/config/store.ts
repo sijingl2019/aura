@@ -24,17 +24,10 @@ const DEFAULT_SELECTION_ACTIONS: SelectionAction[] = [
 
 export const DEFAULT_SELECTION_TOOLBAR: SelectionToolbarConfig = {
   enabled: true,
-  triggerMode: 'select',
   compact: false,
-  followToolbar: true,
-  rememberSize: false,
-  autoClose: true,
-  alwaysOnTop: false,
   opacity: 100,
   actions: DEFAULT_SELECTION_ACTIONS,
   searchEngine: 'google',
-  globalMode: 'off',
-  globalShortcut: 'Alt+W',
 };
 
 let cached: AppSettings | null = null;
@@ -83,7 +76,7 @@ function mergeBuiltins(settings: AppSettings): AppSettings {
     providers,
     defaultModel: settings.defaultModel,
     difyKnowledge: settings.difyKnowledge,
-    selectionToolbar: settings.selectionToolbar ?? DEFAULT_SELECTION_TOOLBAR,
+    selectionToolbar: { ...DEFAULT_SELECTION_TOOLBAR, ...(settings.selectionToolbar ?? {}) },
   };
 }
 
