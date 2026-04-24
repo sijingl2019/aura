@@ -1,19 +1,21 @@
 import type { ProviderConfig } from '@shared/types';
+import { PROVIDER_ICONS } from '@/lib/providerIcons';
 
 interface ProviderIconProps {
-  provider: Pick<ProviderConfig, 'name' | 'icon' | 'iconBg'>;
+  provider: Pick<ProviderConfig, 'id' | 'name' | 'icon' | 'iconBg'>;
   size?: number;
 }
 
 export function ProviderIcon({ provider, size = 28 }: ProviderIconProps) {
-  const { icon, iconBg, name } = provider;
+  const { id, icon, iconBg, name } = provider;
   const bg = iconBg || '#6b7280';
   const letter = (name || '?').trim().charAt(0).toUpperCase();
+  const resolvedIcon = icon || PROVIDER_ICONS[id] || null;
 
-  if (icon) {
+  if (resolvedIcon) {
     return (
       <img
-        src={icon}
+        src={resolvedIcon}
         alt={name}
         style={{ width: size, height: size }}
         className="shrink-0 rounded-full object-cover"
