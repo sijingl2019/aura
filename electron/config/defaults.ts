@@ -1,0 +1,70 @@
+import type { ProviderConfig } from '@shared/types';
+
+export function defaultProviders(): ProviderConfig[] {
+  return [
+    {
+      id: 'minimax',
+      name: 'MiniMax',
+      kind: 'anthropic',
+      enabled: true,
+      builtin: true,
+      apiKey: '',
+      baseURL: 'https://api.minimaxi.com/anthropic',
+      iconBg: '#ef4444',
+      models: [
+        { id: 'MiniMax-M2.7', group: 'M2.7' },
+        { id: 'MiniMax-M2.7-highspeed', group: 'M2.7' },
+        { id: 'MiniMax-M2.5', group: 'M2.5' },
+        { id: 'MiniMax-M2.1', group: 'M2.1' },
+        { id: 'MiniMax-M2', group: 'M2' },
+      ],
+      order: 0,
+    },
+    {
+      id: 'zhipu',
+      name: '智谱',
+      kind: 'openai',
+      enabled: true,
+      builtin: true,
+      apiKey: '',
+      baseURL: 'https://open.bigmodel.cn/api/paas/v4',
+      iconBg: '#2563eb',
+      models: [
+        { id: 'glm-4.6' },
+        { id: 'glm-4-plus' },
+        { id: 'glm-4-air' },
+        { id: 'glm-4-flash' },
+      ],
+      order: 1,
+    },
+    {
+      id: 'siliconflow',
+      name: '硅基流动',
+      kind: 'openai',
+      enabled: true,
+      builtin: true,
+      apiKey: '',
+      baseURL: 'https://api.siliconflow.cn/v1',
+      iconBg: '#7c3aed',
+      models: [],
+      order: 2,
+    },
+    {
+      id: 'moonshot',
+      name: '月之暗面',
+      kind: 'openai',
+      enabled: true,
+      builtin: true,
+      apiKey: '',
+      baseURL: 'https://api.moonshot.cn/v1',
+      iconBg: '#0f172a',
+      models: [
+        { id: 'kimi-k2-0905-preview' },
+        { id: 'moonshot-v1-8k' },
+        { id: 'moonshot-v1-32k' },
+        { id: 'moonshot-v1-128k' },
+      ],
+      order: 3,
+    },
+  ];
+}

@@ -1,4 +1,12 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { AppMenu } from './AppMenu';
 
 const drag: CSSProperties = { WebkitAppRegion: 'drag' } as CSSProperties;
 const noDrag: CSSProperties = { WebkitAppRegion: 'no-drag' } as CSSProperties;
@@ -10,6 +18,8 @@ interface TitleBarProps {
 
 export function TitleBar({ onToggleSidebar, onOpenSearch }: TitleBarProps) {
   const [maximized, setMaximized] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     window.api.window.isMaximized().then(setMaximized);
@@ -23,9 +33,18 @@ export function TitleBar({ onToggleSidebar, onOpenSearch }: TitleBarProps) {
       className="flex h-9 shrink-0 select-none items-center justify-between border-b border-black/5 bg-surface"
     >
       <div style={noDrag} className="flex items-center pl-2">
-        <IconButton title="Menu">
+        <IconButton
+          ref={menuButtonRef}
+          title="Menu"
+          onClick={() => setMenuOpen((v) => !v)}
+        >
           <MenuIcon />
         </IconButton>
+        <AppMenu
+          anchor={menuButtonRef.current}
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+        />
         <IconButton title="Toggle sidebar" onClick={onToggleSidebar}>
           <SidebarIcon />
         </IconButton>
@@ -65,19 +84,23 @@ interface ButtonProps {
   disabled?: boolean;
 }
 
-function IconButton({ title, children, onClick, disabled }: ButtonProps) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:pointer-events-none disabled:text-ink-subtle/60"
-    >
-      {children}
-    </button>
-  );
-}
+const IconButton = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ title, children, onClick, disabled }, ref) => {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        title={title}
+        onClick={onClick}
+        disabled={disabled}
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink disabled:pointer-events-none disabled:text-ink-subtle/60"
+      >
+        {children}
+      </button>
+    );
+  },
+);
+IconButton.displayName = 'IconButton';
 
 function WindowButton({
   title,

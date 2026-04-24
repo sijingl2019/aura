@@ -3,7 +3,15 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(tasklist //FI \"IMAGENAME eq electron.exe\")",
-      "Bash(tasklist //FI \"IMAGENAME eq qiko-aura.exe\")"
+      "Bash(tasklist //FI \"IMAGENAME eq qiko-aura.exe\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(npx vite *)",
+      "Bash(node -e \"const Database = require\\('better-sqlite3'\\); const db = new Database\\(process.env.APPDATA + '/qiko-aura/aura.db', {readonly: true}\\); const tables = db.prepare\\(\\\\\"SELECT name, sql FROM sqlite_master WHERE type='table' OR type='index'\\\\\"\\).all\\(\\); console.log\\(JSON.stringify\\(tables, null, 2\\)\\); console.log\\('user_version:', db.pragma\\('user_version', {simple: true}\\)\\);\")",
+      "Bash(tasklist)",
+      "Bash(powershell -NoProfile -Command 'Get-Process | Where-Object { $_.ProcessName -match '\\\\''electron'\\\\'' } | Select-Object ProcessName, Id')",
+      "Bash(node -e \"const z = require\\('zod'\\); console.log\\('toJSONSchema type:', typeof z.toJSONSchema\\); console.log\\('keys:', Object.keys\\(z\\).filter\\(k => k.toLowerCase\\(\\).includes\\('json'\\)\\).slice\\(0,10\\)\\);\")",
+      "Bash(node -e \"const z = require\\('zod/v4'\\); console.log\\('toJSONSchema type:', typeof z.toJSONSchema\\);\")",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }
