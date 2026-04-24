@@ -26,7 +26,8 @@
     "rehype-shiki": "^0.0.9",
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.5.4",
-    "zustand": "^4.5.5"
+    "zustand": "^4.5.5",
+    "selection-hook": "2.0.1"
   },
   "build": {
     "appId": "com.qiko.aura",

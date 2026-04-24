@@ -11,7 +11,9 @@
       "Bash(powershell -NoProfile -Command 'Get-Process | Where-Object { $_.ProcessName -match '\\\\''electron'\\\\'' } | Select-Object ProcessName, Id')",
       "Bash(node -e \"const z = require\\('zod'\\); console.log\\('toJSONSchema type:', typeof z.toJSONSchema\\); console.log\\('keys:', Object.keys\\(z\\).filter\\(k => k.toLowerCase\\(\\).includes\\('json'\\)\\).slice\\(0,10\\)\\);\")",
       "Bash(node -e \"const z = require\\('zod/v4'\\); console.log\\('toJSONSchema type:', typeof z.toJSONSchema\\);\")",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(cat node_modules/selection-hook/README.md)",
+      "Bash(cat node_modules/selection-hook/readme.md)"
     ]
   }
 }

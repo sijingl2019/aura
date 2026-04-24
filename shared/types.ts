@@ -51,6 +51,7 @@ export interface WindowAPI {
   close: () => Promise<void>;
   isMaximized: () => Promise<boolean>;
   onMaximizedChange: (cb: (maximized: boolean) => void) => () => void;
+  openExternal: (url: string) => Promise<void>;
 }
 
 export interface DbAPI {
@@ -116,9 +117,79 @@ export interface DefaultModelRef {
   modelId: string;
 }
 
+export interface DifyKnowledgeConfig {
+  apiKey: string;
+  apiHost: string;
+  enabled: boolean;
+}
+
+export interface DifyKnowledge {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export type SelectionActionId = 'translate' | 'explain' | 'summarize' | 'search' | 'copy';
+
+export interface SelectionAction {
+  id: SelectionActionId;
+  label: string;
+  enabled: boolean;
+  order: number;
+}
+
+export type SelectionTriggerMode = 'select' | 'ctrl' | 'shortcut';
+export type SearchEngine = 'google' | 'baidu' | 'bing';
+export type GlobalSelectionMode = 'off' | 'auto' | 'shortcut';
+
+export interface SelectionToolbarConfig {
+  enabled: boolean;
+  triggerMode: SelectionTriggerMode;
+  compact: boolean;
+  followToolbar: boolean;
+  rememberSize: boolean;
+  autoClose: boolean;
+  alwaysOnTop: boolean;
+  opacity: number;
+  actions: SelectionAction[];
+  searchEngine: SearchEngine;
+  globalMode: GlobalSelectionMode;
+  globalShortcut: string;
+}
+
+export interface PopupParams {
+  action: string;
+  text: string;
+  streamId: string;
+}
+
+export interface PopupStreamEvent {
+  type: 'text' | 'done' | 'error';
+  streamId: string;
+  delta?: string;
+  message?: string;
+}
+
+export interface PopupAPI {
+  open: (params: { action: string; text: string; screenX: number; screenY: number }) => Promise<void>;
+  getParams: () => Promise<PopupParams | null>;
+  query: (params: PopupParams) => Promise<void>;
+  abort: (params: { streamId: string }) => Promise<void>;
+  onEvent: (cb: (event: PopupStreamEvent) => void) => () => void;
+  close: () => Promise<void>;
+  setPin: (pinned: boolean) => Promise<void>;
+  minimize: () => Promise<void>;
+}
+
+export interface SelectionGlobalAPI {
+  onFromClipboard: (cb: (data: { text: string; dipX: number | null; dipY: number | null }) => void) => () => void;
+}
+
 export interface AppSettings {
   providers: ProviderConfig[];
   defaultModel?: DefaultModelRef;
+  difyKnowledge?: DifyKnowledgeConfig;
+  selectionToolbar?: SelectionToolbarConfig;
 }
 
 export type ProviderConfigInput = Omit<ProviderConfig, 'builtin' | 'order'> &
@@ -130,6 +201,9 @@ export interface SettingsAPI {
   deleteProvider: (params: { id: string }) => Promise<AppSettings>;
   setDefaultModel: (params: DefaultModelRef | null) => Promise<AppSettings>;
   reorderProviders: (params: { ids: string[] }) => Promise<AppSettings>;
+  setDifyKnowledge: (params: DifyKnowledgeConfig | null) => Promise<AppSettings>;
+  listDifyKnowledges: () => Promise<DifyKnowledge[]>;
+  setSelectionToolbar: (params: SelectionToolbarConfig) => Promise<AppSettings>;
 }
 
 export interface ElectronAPI {
@@ -139,6 +213,8 @@ export interface ElectronAPI {
   llm: LlmAPI;
   skills: SkillsAPI;
   settings: SettingsAPI;
+  popup: PopupAPI;
+  selection: SelectionGlobalAPI;
 }
 
 declare global {

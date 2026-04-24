@@ -4,6 +4,8 @@ import { useSettingsStore } from '@/stores/settings';
 import { ProviderList } from './ProviderList';
 import { ProviderDetail } from './ProviderDetail';
 import { DefaultModelSection } from './DefaultModelSection';
+import { KnowledgeSection } from './KnowledgeSection';
+import { SelectionSection } from './SelectionSection';
 
 export function SettingsModal() {
   const open = useUiStore((s) => s.settingsOpen);
@@ -62,6 +64,20 @@ export function SettingsModal() {
           >
             <BubbleIcon />
           </SidebarItem>
+          <SidebarItem
+            label="知识库"
+            active={section === 'knowledge'}
+            onClick={() => openSettings('knowledge')}
+          >
+            <DatabaseIcon />
+          </SidebarItem>
+          <SidebarItem
+            label="划词助手"
+            active={section === 'selection'}
+            onClick={() => openSettings('selection')}
+          >
+            <SelectionIcon />
+          </SidebarItem>
         </aside>
 
         {section === 'providers' && (
@@ -71,6 +87,8 @@ export function SettingsModal() {
           </>
         )}
         {section === 'default-model' && <DefaultModelSection />}
+        {section === 'knowledge' && <KnowledgeSection />}
+        {section === 'selection' && <SelectionSection />}
 
         <button
           type="button"
@@ -125,6 +143,25 @@ function BubbleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 5a2 2 0 012-2h8a2 2 0 012 2v5a2 2 0 01-2 2H8l-3 2.5V12H5a2 2 0 01-2-2z" />
+    </svg>
+  );
+}
+
+function DatabaseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="9" cy="4.5" rx="6" ry="2" />
+      <path d="M3 4.5v4c0 1.1 2.69 2 6 2s6-.9 6-2v-4" />
+      <path d="M3 8.5v4c0 1.1 2.69 2 6 2s6-.9 6-2v-4" />
+    </svg>
+  );
+}
+
+function SelectionIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="9" height="2.5" rx="1" fill="currentColor" stroke="none" opacity="0.35" />
+      <path d="M2 10h14M2 13.5h9" />
     </svg>
   );
 }

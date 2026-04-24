@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 
-type SettingsSection = 'providers' | 'default-model';
+export type SettingsSection = 'providers' | 'default-model' | 'knowledge' | 'selection';
 
 interface UiState {
   settingsOpen: boolean;
   settingsSection: SettingsSection;
   openSettings: (section?: SettingsSection) => void;
   closeSettings: () => void;
+  pendingSelectionAction: { prompt: string } | null;
+  setPendingSelectionAction: (action: { prompt: string } | null) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -14,4 +16,6 @@ export const useUiStore = create<UiState>((set) => ({
   settingsSection: 'providers',
   openSettings: (section = 'providers') => set({ settingsOpen: true, settingsSection: section }),
   closeSettings: () => set({ settingsOpen: false }),
+  pendingSelectionAction: null,
+  setPendingSelectionAction: (action) => set({ pendingSelectionAction: action }),
 }));

@@ -8,7 +8,9 @@ import {
 import { TitleBar } from './components/TitleBar';
 import { Sidebar } from './components/Sidebar';
 import { ChatRoute } from './routes/ChatRoute';
+import { PopupRoute } from './routes/PopupRoute';
 import { SettingsModal } from './components/Settings/SettingsModal';
+import { SelectionToolbar } from './components/SelectionToolbar';
 import { installLlmEventListener } from './lib/ipc';
 
 function AppShell() {
@@ -30,6 +32,7 @@ function AppShell() {
         </main>
       </div>
       <SettingsModal />
+      <SelectionToolbar />
     </div>
   );
 }
@@ -43,6 +46,7 @@ const router = createHashRouter([
       { path: 'c/:id', element: <ChatRoute /> },
     ],
   },
+  { path: '/popup', element: <PopupRoute /> },
 ]);
 
 export default function App() {

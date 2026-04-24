@@ -4,8 +4,13 @@ import type {
   ChatMessage,
   Conversation,
   DefaultModelRef,
+  DifyKnowledge,
+  DifyKnowledgeConfig,
   LlmStreamParams,
+  PopupParams,
+  PopupStreamEvent,
   ProviderConfigInput,
+  SelectionToolbarConfig,
   Skill,
   SkillListItem,
   StreamEvent,
@@ -23,6 +28,8 @@ const api = {
       ipcRenderer.on('window:maximized-change', listener);
       return () => ipcRenderer.off('window:maximized-change', listener);
     },
+    openExternal: (url: string) =>
+      ipcRenderer.invoke('window:openExternal', url) as Promise<void>,
   },
   db: {
     listConversations: () =>
@@ -64,6 +71,34 @@ const api = {
       ipcRenderer.invoke('settings:setDefaultModel', params) as Promise<AppSettings>,
     reorderProviders: (params: { ids: string[] }) =>
       ipcRenderer.invoke('settings:reorderProviders', params) as Promise<AppSettings>,
+    setDifyKnowledge: (params: DifyKnowledgeConfig | null) =>
+      ipcRenderer.invoke('settings:setDifyKnowledge', params) as Promise<AppSettings>,
+    listDifyKnowledges: () =>
+      ipcRenderer.invoke('settings:listDifyKnowledges') as Promise<DifyKnowledge[]>,
+    setSelectionToolbar: (params: SelectionToolbarConfig) =>
+      ipcRenderer.invoke('settings:setSelectionToolbar', params) as Promise<AppSettings>,
+  },
+  popup: {
+    open: (params: { action: string; text: string; screenX: number; screenY: number }) =>
+      ipcRenderer.invoke('popup:open', params) as Promise<void>,
+    getParams: () => ipcRenderer.invoke('popup:getParams') as Promise<PopupParams | null>,
+    query: (params: PopupParams) => ipcRenderer.invoke('popup:query', params) as Promise<void>,
+    abort: (params: { streamId: string }) => ipcRenderer.invoke('popup:abort', params) as Promise<void>,
+    onEvent: (cb: (event: PopupStreamEvent) => void) => {
+      const listener = (_: unknown, event: PopupStreamEvent) => cb(event);
+      ipcRenderer.on('popup:event', listener);
+      return () => ipcRenderer.off('popup:event', listener);
+    },
+    close: () => ipcRenderer.invoke('popup:close') as Promise<void>,
+    setPin: (pinned: boolean) => ipcRenderer.invoke('popup:setPin', pinned) as Promise<void>,
+    minimize: () => ipcRenderer.invoke('popup:minimize') as Promise<void>,
+  },
+  selection: {
+    onFromClipboard: (cb: (data: { text: string; dipX: number | null; dipY: number | null }) => void) => {
+      const listener = (_: unknown, data: { text: string; dipX: number | null; dipY: number | null }) => cb(data);
+      ipcRenderer.on('selection:fromClipboard', listener);
+      return () => ipcRenderer.off('selection:fromClipboard', listener);
+    },
   },
 };
 

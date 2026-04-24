@@ -2,11 +2,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { z } from 'zod';
+import type { DifyKnowledgeConfig } from '@shared/types';
 
-export interface DifyKnowledgeConfig {
-  apiKey: string;
-  apiHost: string;
-}
+export type { DifyKnowledgeConfig };
 
 interface DifyDataset {
   id: string;
@@ -32,6 +30,11 @@ interface DifySearchResponse {
 type McpResponse = {
   content: Array<{ type: 'text'; text: string }>;
   isError?: boolean;
+};
+
+const NOT_CONFIGURED: McpResponse = {
+  content: [{ type: 'text', text: '请先在设置中配置并启用知识库' }],
+  isError: true,
 };
 
 async function performListKnowledges(config: DifyKnowledgeConfig): Promise<McpResponse> {
@@ -140,14 +143,12 @@ async function performSearchKnowledge(
 
 /**
  * Start an in-process Dify Knowledge MCP server and return its client-side transport.
- * Inspired by https://dify.ai/blog/turn-your-dify-app-into-an-mcp-server
+ * Config is read from the getter on every tool call so settings changes take effect immediately
+ * without restarting the server.
  */
 export async function startDifyKnowledgeMcpServer(
-  config: DifyKnowledgeConfig,
+  getConfig: () => DifyKnowledgeConfig | null | undefined,
 ): Promise<{ clientTransport: Transport }> {
-  if (!config.apiKey) throw new Error('dify-knowledge: apiKey is required');
-  if (!config.apiHost) throw new Error('dify-knowledge: apiHost is required');
-
   const server = new McpServer({
     name: 'qiko-aura-dify-knowledge',
     version: '0.1.0',
@@ -158,7 +159,11 @@ export async function startDifyKnowledgeMcpServer(
     {
       description: 'List all Dify knowledge bases available to this API key.',
     },
-    async () => performListKnowledges(config),
+    async () => {
+      const config = getConfig();
+      if (!config || !config.enabled) return NOT_CONFIGURED;
+      return performListKnowledges(config);
+    },
   );
 
   server.registerTool(
@@ -171,7 +176,11 @@ export async function startDifyKnowledgeMcpServer(
         topK: z.number().optional().describe('Number of top results to return (default 6).'),
       },
     },
-    async (args) => performSearchKnowledge(config, args.id, args.query, args.topK ?? 6),
+    async (args) => {
+      const config = getConfig();
+      if (!config || !config.enabled) return NOT_CONFIGURED;
+      return performSearchKnowledge(config, args.id, args.query, args.topK ?? 6);
+    },
   );
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();

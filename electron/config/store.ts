@@ -4,12 +4,38 @@ import path from 'node:path';
 import type {
   AppSettings,
   DefaultModelRef,
+  DifyKnowledgeConfig,
   ProviderConfig,
   ProviderConfigInput,
+  SelectionAction,
+  SelectionToolbarConfig,
 } from '@shared/types';
 import { defaultProviders } from './defaults';
 
 const FILE_NAME = 'settings.json';
+
+const DEFAULT_SELECTION_ACTIONS: SelectionAction[] = [
+  { id: 'translate', label: '翻译', enabled: true, order: 0 },
+  { id: 'explain', label: '解释', enabled: true, order: 1 },
+  { id: 'summarize', label: '总结', enabled: true, order: 2 },
+  { id: 'search', label: '搜索', enabled: true, order: 3 },
+  { id: 'copy', label: '复制', enabled: true, order: 4 },
+];
+
+export const DEFAULT_SELECTION_TOOLBAR: SelectionToolbarConfig = {
+  enabled: true,
+  triggerMode: 'select',
+  compact: false,
+  followToolbar: true,
+  rememberSize: false,
+  autoClose: true,
+  alwaysOnTop: false,
+  opacity: 100,
+  actions: DEFAULT_SELECTION_ACTIONS,
+  searchEngine: 'google',
+  globalMode: 'off',
+  globalShortcut: 'Alt+W',
+};
 
 let cached: AppSettings | null = null;
 
@@ -53,7 +79,12 @@ function mergeBuiltins(settings: AppSettings): AppSettings {
   }
 
   const providers = Array.from(existing.values()).sort((a, b) => a.order - b.order);
-  return { providers, defaultModel: settings.defaultModel };
+  return {
+    providers,
+    defaultModel: settings.defaultModel,
+    difyKnowledge: settings.difyKnowledge,
+    selectionToolbar: settings.selectionToolbar ?? DEFAULT_SELECTION_TOOLBAR,
+  };
 }
 
 function save(settings: AppSettings): void {
@@ -149,4 +180,26 @@ export function reorderProviders(ids: string[]): AppSettings {
 
 export function resolveProvider(id: string): ProviderConfig | undefined {
   return load().providers.find((p) => p.id === id);
+}
+
+export function getDifyKnowledge(): DifyKnowledgeConfig | null {
+  return load().difyKnowledge ?? null;
+}
+
+export function setDifyKnowledge(config: DifyKnowledgeConfig | null): AppSettings {
+  const current = load();
+  current.difyKnowledge = config ?? undefined;
+  save(current);
+  return current;
+}
+
+export function getSelectionToolbar(): SelectionToolbarConfig {
+  return load().selectionToolbar ?? DEFAULT_SELECTION_TOOLBAR;
+}
+
+export function setSelectionToolbar(config: SelectionToolbarConfig): AppSettings {
+  const current = load();
+  current.selectionToolbar = config;
+  save(current);
+  return current;
 }

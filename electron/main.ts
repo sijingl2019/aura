@@ -6,12 +6,14 @@ import { registerDbIpc } from './ipc/db';
 import { registerLlmIpc } from './ipc/llm';
 import { registerSkillsIpc } from './ipc/skills';
 import { registerSettingsIpc } from './ipc/settings';
+import { registerPopupIpc } from './ipc/popupIpc';
+import { initSelectionIpc, syncSelectionConfig, teardownSelectionIpc } from './ipc/selectionIpc';
 import { SkillStore } from './skills/loader';
 import { McpClientManager } from './mcp/client';
 import { startBuiltinMcpServer } from './mcp/builtin-server';
 import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
 import { registerTools } from './tools/registry';
-import { DIFY_MCP } from './config/hardcoded';
+import { getDifyKnowledge } from './config/store';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -75,6 +77,7 @@ ipcMain.handle('window:toggle-maximize', () => {
 });
 ipcMain.handle('window:close', () => mainWindow?.close());
 ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false);
+ipcMain.handle('window:openExternal', (_e, url: string) => shell.openExternal(url));
 
 const mcpManager = new McpClientManager();
 
@@ -91,15 +94,10 @@ app.whenReady().then(async () => {
   const mcpSetups: Array<{
     id: string;
     start: () => Promise<{ clientTransport: Awaited<ReturnType<typeof startBuiltinMcpServer>>['clientTransport'] }>;
-  }> = [{ id: 'builtin', start: startBuiltinMcpServer }];
-
-  if (DIFY_MCP) {
-    const difyConfig = DIFY_MCP;
-    mcpSetups.push({
-      id: 'dify-knowledge',
-      start: () => startDifyKnowledgeMcpServer(difyConfig),
-    });
-  }
+  }> = [
+    { id: 'builtin', start: startBuiltinMcpServer },
+    { id: 'dify-knowledge', start: () => startDifyKnowledgeMcpServer(getDifyKnowledge) },
+  ];
 
   for (const setup of mcpSetups) {
     try {
@@ -126,11 +124,15 @@ app.whenReady().then(async () => {
   registerLlmIpc({ skills, cwd });
   registerSkillsIpc(skills);
   registerSettingsIpc();
+  registerPopupIpc();
 
   createWindow();
+  initSelectionIpc(() => mainWindow);
+  syncSelectionConfig();
 });
 
 app.on('will-quit', () => {
+  teardownSelectionIpc();
   void mcpManager.closeAll();
 });
 
