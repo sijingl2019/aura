@@ -138,23 +138,21 @@ export interface SelectionAction {
   order: number;
 }
 
-export type SelectionTriggerMode = 'select' | 'ctrl' | 'shortcut';
 export type SearchEngine = 'google' | 'baidu' | 'bing';
-export type GlobalSelectionMode = 'off' | 'auto' | 'shortcut';
 
 export interface SelectionToolbarConfig {
   enabled: boolean;
-  triggerMode: SelectionTriggerMode;
   compact: boolean;
-  followToolbar: boolean;
-  rememberSize: boolean;
-  autoClose: boolean;
-  alwaysOnTop: boolean;
   opacity: number;
   actions: SelectionAction[];
   searchEngine: SearchEngine;
-  globalMode: GlobalSelectionMode;
-  globalShortcut: string;
+}
+
+export interface ToolbarParams {
+  text: string;
+  compact: boolean;
+  opacity: number;
+  actions: SelectionAction[];
 }
 
 export interface PopupParams {
@@ -181,8 +179,12 @@ export interface PopupAPI {
   minimize: () => Promise<void>;
 }
 
-export interface SelectionGlobalAPI {
-  onFromClipboard: (cb: (data: { text: string; dipX: number | null; dipY: number | null }) => void) => () => void;
+export interface ToolbarAPI {
+  getParams: () => Promise<ToolbarParams | null>;
+  onUpdate: (cb: (data: { text: string }) => void) => () => void;
+  performAction: (params: { actionId: SelectionActionId; text: string }) => Promise<void>;
+  resize: (params: { width: number; height: number }) => Promise<void>;
+  close: () => Promise<void>;
 }
 
 export interface AppSettings {
@@ -214,7 +216,7 @@ export interface ElectronAPI {
   skills: SkillsAPI;
   settings: SettingsAPI;
   popup: PopupAPI;
-  selection: SelectionGlobalAPI;
+  toolbar: ToolbarAPI;
 }
 
 declare global {

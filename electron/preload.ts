@@ -10,10 +10,12 @@ import type {
   PopupParams,
   PopupStreamEvent,
   ProviderConfigInput,
+  SelectionActionId,
   SelectionToolbarConfig,
   Skill,
   SkillListItem,
   StreamEvent,
+  ToolbarParams,
 } from '@shared/types';
 
 const api = {
@@ -93,12 +95,18 @@ const api = {
     setPin: (pinned: boolean) => ipcRenderer.invoke('popup:setPin', pinned) as Promise<void>,
     minimize: () => ipcRenderer.invoke('popup:minimize') as Promise<void>,
   },
-  selection: {
-    onFromClipboard: (cb: (data: { text: string; dipX: number | null; dipY: number | null }) => void) => {
-      const listener = (_: unknown, data: { text: string; dipX: number | null; dipY: number | null }) => cb(data);
-      ipcRenderer.on('selection:fromClipboard', listener);
-      return () => ipcRenderer.off('selection:fromClipboard', listener);
+  toolbar: {
+    getParams: () => ipcRenderer.invoke('toolbar:getParams') as Promise<ToolbarParams | null>,
+    onUpdate: (cb: (data: { text: string }) => void) => {
+      const listener = (_: unknown, data: { text: string }) => cb(data);
+      ipcRenderer.on('toolbar:onUpdate', listener);
+      return () => ipcRenderer.off('toolbar:onUpdate', listener);
     },
+    performAction: (params: { actionId: SelectionActionId; text: string }) =>
+      ipcRenderer.invoke('toolbar:performAction', params) as Promise<void>,
+    resize: (params: { width: number; height: number }) =>
+      ipcRenderer.invoke('toolbar:resize', params) as Promise<void>,
+    close: () => ipcRenderer.invoke('toolbar:close') as Promise<void>,
   },
 };
 

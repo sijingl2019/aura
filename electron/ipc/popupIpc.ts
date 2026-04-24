@@ -19,7 +19,7 @@ export function registerPopupIpc(): void {
     (_e, params: { action: string; text: string; screenX: number; screenY: number }) => {
       const streamId = `popup_${randomUUID()}`;
       const query: PopupParams = { action: params.action, text: params.text, streamId };
-      createPopupWindow(query, { x: params.screenX, y: params.screenY });
+      createPopupWindow(query, { x: params.screenX + 12, y: params.screenY + 12 });
     },
   );
 

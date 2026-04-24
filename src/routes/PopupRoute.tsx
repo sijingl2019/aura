@@ -18,6 +18,13 @@ export function PopupRoute() {
   const streamIdRef = useRef('');
 
   useEffect(() => {
+    document.body.style.background = 'transparent';
+    document.documentElement.style.background = 'transparent';
+    const root = document.getElementById('root');
+    if (root) root.style.background = 'transparent';
+  }, []);
+
+  useEffect(() => {
     void window.api.popup.getParams().then((p) => {
       if (!p) return;
       setParams(p);
@@ -69,7 +76,7 @@ export function PopupRoute() {
   const actionLabel = params ? (ACTION_LABELS[params.action] ?? params.action) : '';
 
   return (
-    <div className="flex h-screen flex-col bg-white text-[13px] text-gray-800 select-none overflow-hidden">
+    <div className="flex h-screen flex-col bg-white text-[13px] text-gray-800 select-none overflow-hidden rounded-xl" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
       {/* Title bar — draggable */}
       <div
         className="flex h-9 shrink-0 items-center gap-2 border-b border-black/8 bg-gray-50 px-3"
