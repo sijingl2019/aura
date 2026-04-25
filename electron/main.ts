@@ -20,7 +20,55 @@ process.env.APP_ROOT = path.join(__dirname, '..');
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 
-Menu.setApplicationMenu(null);
+// Install a minimal application menu so OS-level shortcuts (Cmd/Ctrl+C/V/X/A, Z/Y) work.
+// Without a menu, Electron strips all default edit shortcuts and inputs can't paste.
+// `autoHideMenuBar: true` on the BrowserWindow keeps it hidden on Windows/Linux;
+// on macOS it appears in the system menu bar as expected.
+const isMac = process.platform === 'darwin';
+Menu.setApplicationMenu(
+  Menu.buildFromTemplate([
+    ...(isMac
+      ? ([
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' },
+              { type: 'separator' },
+              { role: 'services' },
+              { type: 'separator' },
+              { role: 'hide' },
+              { role: 'hideOthers' },
+              { role: 'unhide' },
+              { type: 'separator' },
+              { role: 'quit' },
+            ],
+          },
+        ] as Electron.MenuItemConstructorOptions[])
+      : []),
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        ...(isMac
+          ? ([
+              { role: 'pasteAndMatchStyle' },
+              { role: 'delete' },
+              { role: 'selectAll' },
+            ] as Electron.MenuItemConstructorOptions[])
+          : ([
+              { role: 'delete' },
+              { type: 'separator' },
+              { role: 'selectAll' },
+            ] as Electron.MenuItemConstructorOptions[])),
+      ],
+    },
+  ]),
+);
 
 let mainWindow: BrowserWindow | null = null;
 

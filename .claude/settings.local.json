@@ -13,7 +13,11 @@
       "Bash(node -e \"const z = require\\('zod/v4'\\); console.log\\('toJSONSchema type:', typeof z.toJSONSchema\\);\")",
       "Bash(echo \"exit: $?\")",
       "Bash(cat node_modules/selection-hook/README.md)",
-      "Bash(cat node_modules/selection-hook/readme.md)"
+      "Bash(cat node_modules/selection-hook/readme.md)",
+      "Bash(npm ls *)",
+      "Bash(npm list *)",
+      "Bash(cat \"$\\(npm list -p @mariozechner/pi-agent-core\\)/package.json\")",
+      "Bash(npx tsc *)"
     ]
   }
 }

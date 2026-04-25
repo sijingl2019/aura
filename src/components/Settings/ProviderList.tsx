@@ -55,11 +55,19 @@ export function ProviderList({ selectedId, onSelect }: ProviderListProps) {
               >
                 <ProviderIcon provider={p} size={24} />
                 <span className="flex-1 truncate">{p.name}</span>
-                {p.enabled && (
-                  <span className="rounded-sm border border-emerald-300 px-1 text-[10px] font-medium text-emerald-600">
-                    ON
-                  </span>
-                )}
+                <span
+                  className={
+                    'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ' +
+                    (p.enabled ? 'bg-emerald-500' : 'bg-black/15')
+                  }
+                >
+                  <span
+                    className={
+                      'inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ' +
+                      (p.enabled ? 'translate-x-3.5' : 'translate-x-0.5')
+                    }
+                  />
+                </span>
               </button>
             </li>
           );

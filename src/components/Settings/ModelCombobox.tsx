@@ -9,6 +9,7 @@ interface ModelComboboxProps {
   placeholder?: string;
   align?: 'left' | 'right';
   size?: 'md' | 'sm';
+  placement?: 'top' | 'bottom';
 }
 
 export function ModelCombobox({
@@ -17,6 +18,7 @@ export function ModelCombobox({
   placeholder = '请选择模型',
   align = 'left',
   size = 'md',
+  placement = 'bottom',
 }: ModelComboboxProps) {
   const providers = useSettingsStore((s) => s.providers);
   const enabledProviders = useMemo(() => providers.filter((p) => p.enabled), [providers]);
@@ -100,7 +102,8 @@ export function ModelCombobox({
       {open && (
         <div
           className={
-            'absolute z-30 mt-1 w-[320px] rounded-md border border-black/10 bg-surface shadow-lg ' +
+            'absolute z-50 w-[320px] rounded-md border border-black/10 bg-surface shadow-lg ' +
+            (placement === 'top' ? 'bottom-full mb-1 ' : 'top-full mt-1 ') +
             (align === 'right' ? 'right-0' : 'left-0')
           }
         >

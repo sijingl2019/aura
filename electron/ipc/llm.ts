@@ -1,9 +1,8 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import type { LlmStreamParams, StreamEvent } from '@shared/types';
 import { abortRun, newStreamId, run } from '../agent/runtime';
-import { getSettings } from '../config/store';
+import { getSettings, resolveProvider } from '../config/store';
 import { appendMessage, getConversation, listMessages, renameConversation } from '../db/repo';
-import { createProvider } from '../providers';
 import type { SkillStore } from '../skills/loader';
 
 export function registerLlmIpc(deps: { skills: SkillStore; cwd: string }): void {
@@ -62,21 +61,35 @@ export function registerLlmIpc(deps: { skills: SkillStore; cwd: string }): void 
       return { streamId };
     }
 
-    try {
-      const provider = createProvider({ providerId, modelId });
-      void run({
-        streamId,
-        conversationId: params.conversationId,
-        userText: params.userText,
-        skillId: params.skillId,
-        cwd: deps.cwd,
-        provider,
-        skills: deps.skills,
-        webContents,
-      });
-    } catch (e) {
-      emitError(e instanceof Error ? e.message : String(e));
+    const providerCfg = resolveProvider(providerId);
+    if (!providerCfg) {
+      emitError(`未知的模型提供商 "${providerId}"，请在设置中检查`);
+      return { streamId };
     }
+    if (!providerCfg.enabled) {
+      emitError(`提供商 "${providerCfg.name}" 已停用，请在设置中启用或换一个提供商`);
+      return { streamId };
+    }
+    if (!providerCfg.apiKey.trim()) {
+      emitError(`提供商 "${providerCfg.name}" 未配置 API 密钥`);
+      return { streamId };
+    }
+    if (!providerCfg.models.some((m) => m.id === modelId)) {
+      emitError(`模型 "${modelId}" 不在提供商 "${providerCfg.name}" 的模型列表中`);
+      return { streamId };
+    }
+
+    void run({
+      streamId,
+      conversationId: params.conversationId,
+      userText: params.userText,
+      skillId: params.skillId,
+      cwd: deps.cwd,
+      providerCfg,
+      modelId,
+      skills: deps.skills,
+      webContents,
+    });
 
     return { streamId };
   });

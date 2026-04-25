@@ -84,7 +84,7 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <header className="flex items-center justify-between border-b border-black/5 px-8 py-5">
+      <header className="flex items-center justify-between border-b border-black/5 pl-8 pr-14 py-5">
         <div className="flex items-center gap-2 text-base font-medium text-ink">
           <span>{provider.name}</span>
           <ExternalIcon />

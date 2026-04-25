@@ -59,6 +59,7 @@ export function ModelSwitcher({
           onChange={handleChange}
           placeholder="选择模型"
           size="sm"
+          placement="top"
         />
       </div>
       {isFollowingDefault && (

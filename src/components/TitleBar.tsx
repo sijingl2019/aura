@@ -3,18 +3,16 @@ import {
   useEffect,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { AppMenu } from './AppMenu';
-
-const drag: CSSProperties = { WebkitAppRegion: 'drag' } as CSSProperties;
-const noDrag: CSSProperties = { WebkitAppRegion: 'no-drag' } as CSSProperties;
 
 interface TitleBarProps {
   onToggleSidebar?: () => void;
   onOpenSearch?: () => void;
 }
+
+const isMac = /Mac/.test(navigator.platform);
 
 export function TitleBar({ onToggleSidebar, onOpenSearch }: TitleBarProps) {
   const [maximized, setMaximized] = useState(false);
@@ -27,52 +25,66 @@ export function TitleBar({ onToggleSidebar, onOpenSearch }: TitleBarProps) {
     return off;
   }, []);
 
-  return (
-    <header
-      style={drag}
-      className="flex h-9 shrink-0 select-none items-center justify-between border-b border-black/5 bg-surface"
-    >
-      <div style={noDrag} className="flex items-center pl-2">
-        <IconButton
-          ref={menuButtonRef}
-          title="Menu"
-          onClick={() => setMenuOpen((v) => !v)}
-        >
-          <MenuIcon />
-        </IconButton>
-        <AppMenu
-          anchor={menuButtonRef.current}
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-        />
-        <IconButton title="Toggle sidebar" onClick={onToggleSidebar}>
-          <SidebarIcon />
-        </IconButton>
-        <IconButton title="Search" onClick={onOpenSearch}>
-          <SearchIcon />
-        </IconButton>
-        <IconButton title="Back" disabled>
-          <ArrowLeftIcon />
-        </IconButton>
-        <IconButton title="Forward" disabled>
-          <ArrowRightIcon />
-        </IconButton>
-      </div>
+  const iconButtons = (
+    <>
+      <IconButton
+        ref={menuButtonRef}
+        title="Menu"
+        onClick={() => setMenuOpen((v) => !v)}
+      >
+        <MenuIcon />
+      </IconButton>
+      <AppMenu
+        anchor={menuButtonRef.current}
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+      />
+      <IconButton title="Toggle sidebar" onClick={onToggleSidebar}>
+        <SidebarIcon />
+      </IconButton>
+      <IconButton title="Search" onClick={onOpenSearch}>
+        <SearchIcon />
+      </IconButton>
+      <IconButton title="Back" disabled>
+        <ArrowLeftIcon />
+      </IconButton>
+      <IconButton title="Forward" disabled>
+        <ArrowRightIcon />
+      </IconButton>
+    </>
+  );
 
-      <div style={noDrag} className="flex items-center">
-        <WindowButton title="Minimize" onClick={() => window.api.window.minimize()}>
-          <MinimizeIcon />
-        </WindowButton>
-        <WindowButton
-          title={maximized ? 'Restore' : 'Maximize'}
-          onClick={() => window.api.window.toggleMaximize()}
-        >
-          {maximized ? <RestoreIcon /> : <MaximizeIcon />}
-        </WindowButton>
-        <WindowButton title="Close" danger onClick={() => window.api.window.close()}>
-          <CloseIcon />
-        </WindowButton>
-      </div>
+  return (
+    <header className="drag-region flex h-9 shrink-0 select-none items-center border-b border-black/5 bg-surface">
+      {isMac ? (
+        <>
+          <div className="flex-1" />
+          <div className="no-drag-region flex items-center pr-1">
+            {iconButtons}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="no-drag-region flex items-center pl-2">
+            {iconButtons}
+          </div>
+          <div className="flex-1" />
+          <div className="no-drag-region flex items-center">
+            <WindowButton title="Minimize" onClick={() => window.api.window.minimize()}>
+              <MinimizeIcon />
+            </WindowButton>
+            <WindowButton
+              title={maximized ? 'Restore' : 'Maximize'}
+              onClick={() => window.api.window.toggleMaximize()}
+            >
+              {maximized ? <RestoreIcon /> : <MaximizeIcon />}
+            </WindowButton>
+            <WindowButton title="Close" danger onClick={() => window.api.window.close()}>
+              <CloseIcon />
+            </WindowButton>
+          </div>
+        </>
+      )}
     </header>
   );
 }
