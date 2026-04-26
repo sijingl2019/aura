@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { initDb } from './db/index';
@@ -19,6 +19,17 @@ import { getDifyKnowledge } from './config/store';
 process.env.APP_ROOT = path.join(__dirname, '..');
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
+
+// Resolve image assets from src/ in dev, and from extraResources in prod packaging
+function resolveAssetPath(relative: string): string {
+  if (VITE_DEV_SERVER_URL) {
+    return path.join(process.env.APP_ROOT!, 'src/assets/images', relative);
+  }
+  return path.join(process.resourcesPath, 'assets', relative);
+}
+
+const APP_ICON_PATH = resolveAssetPath('logo.png');
+const TRAY_ICON_PATH = resolveAssetPath('tray.png');
 
 // Install a minimal application menu so OS-level shortcuts (Cmd/Ctrl+C/V/X/A, Z/Y) work.
 // Without a menu, Electron strips all default edit shortcuts and inputs can't paste.
@@ -71,6 +82,7 @@ Menu.setApplicationMenu(
 );
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -79,6 +91,7 @@ function createWindow() {
     minWidth: 760,
     minHeight: 520,
     title: 'Qiko Aura',
+    icon: APP_ICON_PATH,
     backgroundColor: '#ffffff',
     frame: false,
     titleBarStyle: 'hidden',
@@ -113,6 +126,44 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+}
+
+function createTray() {
+  if (tray) return;
+  const image = nativeImage.createFromPath(TRAY_ICON_PATH);
+  // macOS menu-bar icons should be templates so they auto-invert in dark mode
+  if (process.platform === 'darwin') image.setTemplateImage(true);
+  tray = new Tray(image);
+  tray.setToolTip('Qiko Aura');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: '显示主窗口',
+        click: () => {
+          if (!mainWindow) {
+            createWindow();
+            return;
+          }
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+        },
+      },
+      { type: 'separator' },
+      { role: 'quit', label: '退出' },
+    ]),
+  );
+  tray.on('click', () => {
+    if (!mainWindow) {
+      createWindow();
+      return;
+    }
+    if (mainWindow.isVisible()) mainWindow.hide();
+    else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 }
 
@@ -177,6 +228,14 @@ app.whenReady().then(async () => {
   registerToolbarIpc();
 
   createWindow();
+  createTray();
+  if (process.platform === 'darwin' && app.dock) {
+    try {
+      app.dock.setIcon(nativeImage.createFromPath(APP_ICON_PATH));
+    } catch (e) {
+      console.warn(`[dock] failed to set icon: ${(e as Error).message}`);
+    }
+  }
   initSelectionIpc();
   syncSelectionConfig();
 });
