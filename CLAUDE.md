@@ -28,6 +28,18 @@ Electron desktop AI chat. Renderer speaks **only** to main via `window.api.{wind
 4. All streaming pushes go out on the `'llm:event'` channel as `StreamEvent` (see [shared/types.ts](shared/types.ts)): `text | tool_call_start | tool_call_args | tool_call_end | tool_result | done | error`.
 5. On `done`, [src/lib/ipc.ts](src/lib/ipc.ts) does `loadMessages` + `loadList`, which replaces the optimistic user row with the real DB rows and flushes streaming state.
 
+### Agent runtime — pi-agent-core integration
+
+The agent runtime now delegates to [pi-agent-core](https://github.com/pi-ai/pi-agent-core) + [pi-coding-agent](https://github.com/pi-ai/pi-coding-agent) for stateful multi-round agentic loops. Three adapter layers bridge our SQLite/provider schema to pi-ai's type system:
+
+1. **Message bridge** ([electron/agent/message-bridge.ts](electron/agent/message-bridge.ts)): `chatMessagesToAgent()` converts SQLite `ChatMessage[]` to pi-ai `AgentMessage[]`, filtering out system messages (handled via AgentState) and merging consecutive `role='tool'` rows into a single `ToolResultMessage` (pi-ai constraint). Assistant messages are reconstructed with text + toolCall content blocks.
+
+2. **Provider adapter** ([electron/providers/to-pi-model.ts](electron/providers/to-pi-model.ts)): `toPiModel()` wraps `ProviderConfig` into a pi-ai `Model` object, mapping `kind='anthropic'` to the `anthropic-messages` API and OpenAI-compatible providers to `openai-completions`.
+
+3. **Tool adapter** ([electron/tools/to-agent-tool.ts](electron/tools/to-agent-tool.ts)): `toAgentTool()` wraps our `Tool` interface into a pi-agent-core `AgentTool`, tunneling results back through our standard `Tool.execute()` handler and repackaging the response as `{ content: [{type: 'text', text: ...}], details }`.
+
+These adapters are initialized in [electron/main.ts](electron/main.ts) and the main agent loop in [electron/agent/runtime.ts](electron/agent/runtime.ts) passes them to the pi-ai Agent constructor.
+
 ### Settings & configuration
 
 User-visible provider and model settings are stored in `app.getPath('userData')/settings.json` and managed by [electron/config/store.ts](electron/config/store.ts). On first load, `mergeBuiltins()` injects the four preset providers (MiniMax / 智谱 / 硅基流动 / 月之暗面) from [electron/config/defaults.ts](electron/config/defaults.ts) if they're absent — so builtins are always present even on a fresh install. Builtin providers carry `builtin: true` and cannot be deleted from the UI.
