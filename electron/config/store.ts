@@ -9,8 +9,10 @@ import type {
   ProviderConfigInput,
   SelectionAction,
   SelectionToolbarConfig,
+  ShortcutDef,
 } from '@shared/types';
 import { defaultProviders } from './defaults';
+import { DEFAULT_SHORTCUTS } from './hardcoded';
 
 const FILE_NAME = 'settings.json';
 
@@ -77,6 +79,7 @@ function mergeBuiltins(settings: AppSettings): AppSettings {
     defaultModel: settings.defaultModel,
     difyKnowledge: settings.difyKnowledge,
     selectionToolbar: { ...DEFAULT_SELECTION_TOOLBAR, ...(settings.selectionToolbar ?? {}) },
+    shortcutsOverrides: settings.shortcutsOverrides,
   };
 }
 
@@ -195,4 +198,28 @@ export function setSelectionToolbar(config: SelectionToolbarConfig): AppSettings
   current.selectionToolbar = config;
   save(current);
   return current;
+}
+
+export function getShortcuts(): ShortcutDef[] {
+  const overrides = load().shortcutsOverrides ?? {};
+  return DEFAULT_SHORTCUTS.map((s) => ({
+    ...s,
+    keys: overrides[s.id] ?? s.keys,
+  }));
+}
+
+export function setShortcutOverride(id: string, keys: string): ShortcutDef[] {
+  const current = load();
+  current.shortcutsOverrides = { ...(current.shortcutsOverrides ?? {}), [id]: keys };
+  save(current);
+  return getShortcuts();
+}
+
+export function resetShortcut(id: string): ShortcutDef[] {
+  const current = load();
+  const overrides = { ...(current.shortcutsOverrides ?? {}) };
+  delete overrides[id];
+  current.shortcutsOverrides = overrides;
+  save(current);
+  return getShortcuts();
 }

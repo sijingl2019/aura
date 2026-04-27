@@ -6,6 +6,7 @@ import type {
   ProviderConfig,
   ProviderConfigInput,
   SelectionToolbarConfig,
+  ShortcutDef,
 } from '@shared/types';
 
 interface SettingsState {
@@ -14,6 +15,7 @@ interface SettingsState {
   defaultModel?: DefaultModelRef;
   difyKnowledge?: DifyKnowledgeConfig;
   selectionToolbar?: SelectionToolbarConfig;
+  shortcuts: ShortcutDef[];
 
   load: () => Promise<void>;
   upsertProvider: (provider: ProviderConfigInput) => Promise<void>;
@@ -22,6 +24,9 @@ interface SettingsState {
   reorderProviders: (ids: string[]) => Promise<void>;
   setDifyKnowledge: (config: DifyKnowledgeConfig | null) => Promise<void>;
   setSelectionToolbar: (config: SelectionToolbarConfig) => Promise<void>;
+  loadShortcuts: () => Promise<void>;
+  setShortcutOverride: (id: string, keys: string) => Promise<void>;
+  resetShortcut: (id: string) => Promise<void>;
 }
 
 function apply(set: (partial: Partial<SettingsState>) => void, next: AppSettings) {
@@ -40,6 +45,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   defaultModel: undefined,
   difyKnowledge: undefined,
   selectionToolbar: undefined,
+  shortcuts: [],
 
   load: async () => {
     const data = await window.api.settings.get();
@@ -74,5 +80,20 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setSelectionToolbar: async (config) => {
     const data = await window.api.settings.setSelectionToolbar(config);
     apply(set, data);
+  },
+
+  loadShortcuts: async () => {
+    const shortcuts = await window.api.shortcuts.get();
+    set({ shortcuts });
+  },
+
+  setShortcutOverride: async (id, keys) => {
+    const shortcuts = await window.api.shortcuts.set({ id, keys });
+    set({ shortcuts });
+  },
+
+  resetShortcut: async (id) => {
+    const shortcuts = await window.api.shortcuts.reset({ id });
+    set({ shortcuts });
   },
 }));

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { getDb } from './index';
-import type { ChatMessage, Conversation, MessageRole, ToolCall } from '@shared/types';
+import type { ChatMessage, Conversation, ConversationSearchResult, MessageRole, ToolCall } from '@shared/types';
 
 interface ConversationRow {
   id: string;
@@ -118,6 +118,64 @@ export interface AppendMessageInput {
   model?: string;
   inputTokens?: number;
   outputTokens?: number;
+}
+
+export function searchConversations(query: string, limit = 20): ConversationSearchResult[] {
+  const db = getDb();
+  const pattern = `%${query}%`;
+
+  const titleRows = db
+    .prepare(
+      `SELECT id, title, updated_at FROM conversations
+       WHERE title LIKE ? ORDER BY updated_at DESC LIMIT ?`,
+    )
+    .all(pattern, limit) as { id: string; title: string; updated_at: number }[];
+
+  const msgRows = db
+    .prepare(
+      `SELECT m.conversation_id, m.content, c.title, c.updated_at
+       FROM messages m
+       JOIN conversations c ON m.conversation_id = c.id
+       WHERE m.content LIKE ? AND m.role IN ('user', 'assistant')
+       ORDER BY c.updated_at DESC LIMIT ?`,
+    )
+    .all(pattern, limit) as {
+      conversation_id: string;
+      content: string;
+      title: string;
+      updated_at: number;
+    }[];
+
+  const seen = new Set<string>();
+  const results: ConversationSearchResult[] = [];
+
+  for (const row of titleRows) {
+    if (!seen.has(row.id)) {
+      seen.add(row.id);
+      results.push({ conversationId: row.id, conversationTitle: row.title, updatedAt: row.updated_at });
+    }
+  }
+
+  for (const row of msgRows) {
+    if (!seen.has(row.conversation_id)) {
+      seen.add(row.conversation_id);
+      const lower = row.content.toLowerCase();
+      const idx = lower.indexOf(query.toLowerCase());
+      const start = Math.max(0, idx - 40);
+      const end = Math.min(row.content.length, idx + query.length + 40);
+      let snippet = row.content.slice(start, end).replace(/\n/g, ' ');
+      if (start > 0) snippet = '…' + snippet;
+      if (end < row.content.length) snippet += '…';
+      results.push({
+        conversationId: row.conversation_id,
+        conversationTitle: row.title,
+        updatedAt: row.updated_at,
+        snippet,
+      });
+    }
+  }
+
+  return results.slice(0, limit);
 }
 
 export function appendMessage(input: AppendMessageInput): ChatMessage {

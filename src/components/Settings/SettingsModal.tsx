@@ -6,6 +6,7 @@ import { ProviderDetail } from './ProviderDetail';
 import { DefaultModelSection } from './DefaultModelSection';
 import { KnowledgeSection } from './KnowledgeSection';
 import { SelectionSection } from './SelectionSection';
+import { KeyboardShortcutsSection } from './KeyboardShortcutsSection';
 
 export function SettingsModal() {
   const open = useUiStore((s) => s.settingsOpen);
@@ -78,6 +79,13 @@ export function SettingsModal() {
           >
             <SelectionIcon />
           </SidebarItem>
+          <SidebarItem
+            label="快捷键"
+            active={section === 'shortcuts'}
+            onClick={() => openSettings('shortcuts')}
+          >
+            <KeyboardIcon />
+          </SidebarItem>
         </aside>
 
         {section === 'providers' && (
@@ -89,6 +97,7 @@ export function SettingsModal() {
         {section === 'default-model' && <DefaultModelSection />}
         {section === 'knowledge' && <KnowledgeSection />}
         {section === 'selection' && <SelectionSection />}
+        {section === 'shortcuts' && <KeyboardShortcutsSection />}
 
         <button
           type="button"
@@ -162,6 +171,15 @@ function SelectionIcon() {
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="4" width="9" height="2.5" rx="1" fill="currentColor" stroke="none" opacity="0.35" />
       <path d="M2 10h14M2 13.5h9" />
+    </svg>
+  );
+}
+
+function KeyboardIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="14" height="9" rx="1.5" />
+      <path d="M5 8h1M8.5 8h1M12 8h1M5 11h8" />
     </svg>
   );
 }

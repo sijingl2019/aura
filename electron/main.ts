@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, shell, Tray } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { initDb } from './db/index';
@@ -8,13 +8,15 @@ import { registerSkillsIpc } from './ipc/skills';
 import { registerSettingsIpc } from './ipc/settings';
 import { registerPopupIpc } from './ipc/popupIpc';
 import { registerToolbarIpc } from './ipc/toolbarIpc';
+import { registerQuickQuestionIpc } from './ipc/quickQuestionIpc';
 import { initSelectionIpc, syncSelectionConfig, teardownSelectionIpc } from './ipc/selectionIpc';
 import { SkillStore } from './skills/loader';
 import { McpClientManager } from './mcp/client';
 import { startBuiltinMcpServer } from './mcp/builtin-server';
 import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
 import { registerTools } from './tools/registry';
-import { getDifyKnowledge } from './config/store';
+import { getDifyKnowledge, getShortcuts } from './config/store';
+import { toggleQuickQuestionWindow } from './windows/quickQuestionWindow';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -167,6 +169,24 @@ function createTray() {
   });
 }
 
+function updateGlobalShortcuts(): void {
+  globalShortcut.unregisterAll();
+  for (const s of getShortcuts().filter((s) => s.global)) {
+    const ok = globalShortcut.register(s.keys, () => {
+      if (s.id === 'quick-question') toggleQuickQuestionWindow();
+    });
+    const verified = globalShortcut.isRegistered(s.keys);
+    if (!ok || !verified) {
+      console.warn(
+        `[shortcut] global shortcut "${s.keys}" registration failed (register=${ok}, isRegistered=${verified}). ` +
+        `On Windows this often means the OS or input method (IME) has reserved it — try a different combination in Settings → 快捷键.`,
+      );
+    } else {
+      console.log(`[shortcut] global shortcut "${s.keys}" registered (id=${s.id})`);
+    }
+  }
+}
+
 ipcMain.handle('app:ping', () => 'pong from main');
 
 ipcMain.handle('window:minimize', () => mainWindow?.minimize());
@@ -223,12 +243,14 @@ app.whenReady().then(async () => {
   registerDbIpc();
   registerLlmIpc({ skills, cwd });
   registerSkillsIpc(skills);
-  registerSettingsIpc();
+  registerSettingsIpc(updateGlobalShortcuts);
   registerPopupIpc();
   registerToolbarIpc();
+  registerQuickQuestionIpc();
 
   createWindow();
   createTray();
+  updateGlobalShortcuts();
   if (process.platform === 'darwin' && app.dock) {
     try {
       app.dock.setIcon(nativeImage.createFromPath(APP_ICON_PATH));
@@ -241,6 +263,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
   teardownSelectionIpc();
   void mcpManager.closeAll();
 });

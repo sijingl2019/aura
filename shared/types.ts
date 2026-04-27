@@ -54,6 +54,31 @@ export interface WindowAPI {
   openExternal: (url: string) => Promise<void>;
 }
 
+export interface ConversationSearchResult {
+  conversationId: string;
+  conversationTitle: string;
+  updatedAt: number;
+  snippet?: string;
+}
+
+export interface ShortcutDef {
+  id: string;
+  label: string;
+  keys: string; // Electron accelerator format, e.g. 'CmdOrCtrl+N'
+  global: boolean;
+}
+
+export interface ShortcutsSettings {
+  overrides: Record<string, string>; // id → keys
+}
+
+export interface QuickQuestionEvent {
+  type: 'text' | 'done' | 'error';
+  streamId: string;
+  delta?: string;
+  message?: string;
+}
+
 export interface DbAPI {
   listConversations: () => Promise<Conversation[]>;
   createConversation: (params: { title?: string }) => Promise<Conversation>;
@@ -65,6 +90,7 @@ export interface DbAPI {
     modelId: string;
   }) => Promise<void>;
   listMessages: (params: { conversationId: string }) => Promise<ChatMessage[]>;
+  searchConversations: (params: { query: string }) => Promise<ConversationSearchResult[]>;
 }
 
 export interface LlmStreamParams {
@@ -192,6 +218,7 @@ export interface AppSettings {
   defaultModel?: DefaultModelRef;
   difyKnowledge?: DifyKnowledgeConfig;
   selectionToolbar?: SelectionToolbarConfig;
+  shortcutsOverrides?: Record<string, string>;
 }
 
 export type ProviderConfigInput = Omit<ProviderConfig, 'builtin' | 'order'> &
@@ -208,6 +235,19 @@ export interface SettingsAPI {
   setSelectionToolbar: (params: SelectionToolbarConfig) => Promise<AppSettings>;
 }
 
+export interface ShortcutsAPI {
+  get: () => Promise<ShortcutDef[]>;
+  set: (params: { id: string; keys: string }) => Promise<ShortcutDef[]>;
+  reset: (params: { id: string }) => Promise<ShortcutDef[]>;
+}
+
+export interface QuickQuestionAPI {
+  close: () => Promise<void>;
+  expand: () => Promise<void>;
+  openAttachMenu: () => Promise<string[]>;
+  onReset: (cb: () => void) => () => void;
+}
+
 export interface ElectronAPI {
   ping: () => Promise<string>;
   window: WindowAPI;
@@ -217,6 +257,8 @@ export interface ElectronAPI {
   settings: SettingsAPI;
   popup: PopupAPI;
   toolbar: ToolbarAPI;
+  quickQuestion: QuickQuestionAPI;
+  shortcuts: ShortcutsAPI;
 }
 
 declare global {

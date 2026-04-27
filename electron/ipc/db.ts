@@ -5,6 +5,7 @@ import {
   listConversations,
   listMessages,
   renameConversation,
+  searchConversations,
   setConversationModel,
 } from '../db/repo';
 
@@ -32,5 +33,9 @@ export function registerDbIpc(): void {
 
   ipcMain.handle('db:listMessages', (_e, params: { conversationId: string }) =>
     listMessages(params.conversationId),
+  );
+
+  ipcMain.handle('db:searchConversations', (_e, params: { query: string }) =>
+    searchConversations(params.query),
   );
 }

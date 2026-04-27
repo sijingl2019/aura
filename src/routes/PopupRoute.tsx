@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
 import type { PopupParams } from '@shared/types';
+import { useEffect, useRef, useState } from 'react';
 
 const ACTION_LABELS: Record<string, string> = {
   translate: '翻译',
@@ -36,7 +36,10 @@ export function PopupRoute() {
       if (ev.streamId !== streamIdRef.current) return;
       if (ev.type === 'text') setResult((r) => r + (ev.delta ?? ''));
       else if (ev.type === 'done') setStreaming(false);
-      else if (ev.type === 'error') { setError(ev.message ?? '未知错误'); setStreaming(false); }
+      else if (ev.type === 'error') {
+        setError(ev.message ?? '未知错误');
+        setStreaming(false);
+      }
     });
 
     const onKey = (e: KeyboardEvent) => {
@@ -46,8 +49,11 @@ export function PopupRoute() {
     };
     document.addEventListener('keydown', onKey);
 
-    return () => { off(); document.removeEventListener('keydown', onKey); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      off();
+      document.removeEventListener('keydown', onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function startQuery(p: PopupParams) {
@@ -76,7 +82,10 @@ export function PopupRoute() {
   const actionLabel = params ? (ACTION_LABELS[params.action] ?? params.action) : '';
 
   return (
-    <div className="flex h-screen flex-col bg-white text-[13px] text-gray-800 select-none overflow-hidden rounded-xl" style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+    <div
+      className="flex h-screen flex-col bg-white text-[13px] text-gray-800 select-none overflow-hidden rounded-xl"
+      style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}
+    >
       {/* Title bar — draggable */}
       <div
         className="flex h-9 shrink-0 items-center gap-2 border-b border-black/8 bg-gray-50 px-3"
@@ -92,7 +101,7 @@ export function PopupRoute() {
           className="flex items-center gap-1"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
-          <TitleBtn onClick={handlePin} title={pinned ? '取消置顶' : '置顶'}>
+          <TitleBtn onClick={handlePin} title={pinned ? '取消钉住' : '钉住'}>
             <PinIcon active={pinned} />
           </TitleBtn>
           <TitleBtn onClick={() => void window.api.popup.minimize()} title="最小化">
@@ -169,7 +178,9 @@ function TitleBtn({
       title={title}
       onClick={onClick}
       className={`inline-flex h-6 w-6 items-center justify-center rounded transition-colors ${
-        danger ? 'hover:bg-red-100 hover:text-red-600 text-gray-400' : 'hover:bg-black/8 text-gray-400 hover:text-gray-700'
+        danger
+          ? 'hover:bg-red-100 hover:text-red-600 text-gray-400'
+          : 'hover:bg-black/8 text-gray-400 hover:text-gray-700'
       }`}
     >
       {children}
@@ -206,28 +217,58 @@ function BottomBtn({
 
 function PinIcon({ active }: { active: boolean }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.4">
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill={active ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
       <path d="M5 1l1 4H3L5 1zM5 5v6M3 5h4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 function MinimizeIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4">
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
       <path d="M2 6h8" strokeLinecap="round" />
     </svg>
   );
 }
 function CloseIcon() {
   return (
-    <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 11 11"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+    >
       <path d="M2 2l7 7M9 2l-7 7" />
     </svg>
   );
 }
 function CloseCircleIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 13 13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+    >
       <circle cx="6.5" cy="6.5" r="5.5" />
       <path d="M4.5 4.5l4 4M8.5 4.5l-4 4" />
     </svg>
@@ -235,7 +276,16 @@ function CloseCircleIcon() {
 }
 function RegenerateIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 13 13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M11 2A5.5 5.5 0 102 7.5" />
       <path d="M2 2v3.5h3.5" />
     </svg>
@@ -243,7 +293,16 @@ function RegenerateIcon() {
 }
 function CopySmIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 13 13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="5" y="4" width="6" height="7" rx="1" />
       <path d="M8 4V3a1 1 0 00-1-1H3a1 1 0 00-1 1v6a1 1 0 001 1h1" />
     </svg>

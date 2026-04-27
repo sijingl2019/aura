@@ -3,6 +3,7 @@ import type {
   AppSettings,
   ChatMessage,
   Conversation,
+  ConversationSearchResult,
   DefaultModelRef,
   DifyKnowledge,
   DifyKnowledgeConfig,
@@ -12,6 +13,7 @@ import type {
   ProviderConfigInput,
   SelectionActionId,
   SelectionToolbarConfig,
+  ShortcutDef,
   Skill,
   SkillListItem,
   StreamEvent,
@@ -46,6 +48,8 @@ const api = {
       ipcRenderer.invoke('db:updateConversationModel', params) as Promise<void>,
     listMessages: (params: { conversationId: string }) =>
       ipcRenderer.invoke('db:listMessages', params) as Promise<ChatMessage[]>,
+    searchConversations: (params: { query: string }) =>
+      ipcRenderer.invoke('db:searchConversations', params) as Promise<ConversationSearchResult[]>,
   },
   llm: {
     stream: (params: LlmStreamParams) =>
@@ -107,6 +111,23 @@ const api = {
     resize: (params: { width: number; height: number }) =>
       ipcRenderer.invoke('toolbar:resize', params) as Promise<void>,
     close: () => ipcRenderer.invoke('toolbar:close') as Promise<void>,
+  },
+  quickQuestion: {
+    close: () => ipcRenderer.invoke('quickQuestion:close') as Promise<void>,
+    expand: () => ipcRenderer.invoke('quickQuestion:expand') as Promise<void>,
+    openAttachMenu: () => ipcRenderer.invoke('quickQuestion:openAttachMenu') as Promise<string[]>,
+    onReset: (cb: () => void) => {
+      const listener = () => cb();
+      ipcRenderer.on('quickQuestion:reset', listener);
+      return () => ipcRenderer.off('quickQuestion:reset', listener);
+    },
+  },
+  shortcuts: {
+    get: () => ipcRenderer.invoke('shortcuts:get') as Promise<ShortcutDef[]>,
+    set: (params: { id: string; keys: string }) =>
+      ipcRenderer.invoke('shortcuts:set', params) as Promise<ShortcutDef[]>,
+    reset: (params: { id: string }) =>
+      ipcRenderer.invoke('shortcuts:reset', params) as Promise<ShortcutDef[]>,
   },
 };
 

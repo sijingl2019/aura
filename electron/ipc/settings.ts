@@ -4,15 +4,18 @@ import {
   deleteProvider,
   getDifyKnowledge,
   getSettings,
+  getShortcuts,
   reorderProviders,
+  resetShortcut,
   setDefaultModel,
   setDifyKnowledge,
   setSelectionToolbar,
+  setShortcutOverride,
   upsertProvider,
 } from '../config/store';
 import { syncSelectionConfig } from './selectionIpc';
 
-export function registerSettingsIpc(): void {
+export function registerSettingsIpc(onShortcutsChanged?: () => void): void {
   ipcMain.handle('settings:get', () => getSettings());
 
   ipcMain.handle('settings:upsertProvider', (_e, provider: ProviderConfigInput) =>
@@ -62,6 +65,20 @@ export function registerSettingsIpc(): void {
   ipcMain.handle('settings:setSelectionToolbar', (_e, params: SelectionToolbarConfig) => {
     const result = setSelectionToolbar(params);
     syncSelectionConfig();
+    return result;
+  });
+
+  ipcMain.handle('shortcuts:get', () => getShortcuts());
+
+  ipcMain.handle('shortcuts:set', (_e, params: { id: string; keys: string }) => {
+    const result = setShortcutOverride(params.id, params.keys);
+    onShortcutsChanged?.();
+    return result;
+  });
+
+  ipcMain.handle('shortcuts:reset', (_e, params: { id: string }) => {
+    const result = resetShortcut(params.id);
+    onShortcutsChanged?.();
     return result;
   });
 }
