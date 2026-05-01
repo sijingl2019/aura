@@ -88,6 +88,9 @@ export interface SkillListItem {
 export interface SkillsAPI {
   list: () => Promise<SkillListItem[]>;
   get: (params: { id: string }) => Promise<Skill | null>;
+  create: (params: { name: string; description: string; body: string }) => Promise<Skill>;
+  update: (params: { id: string; name: string; description: string; body: string }) => Promise<Skill>;
+  delete: (params: { id: string }) => Promise<void>;
 }
 
 export type ProviderKind = 'openai' | 'anthropic';

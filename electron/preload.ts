@@ -62,6 +62,12 @@ const api = {
     list: () => ipcRenderer.invoke('skills:list') as Promise<SkillListItem[]>,
     get: (params: { id: string }) =>
       ipcRenderer.invoke('skills:get', params) as Promise<Skill | null>,
+    create: (params: { name: string; description: string; body: string }) =>
+      ipcRenderer.invoke('skills:create', params) as Promise<Skill>,
+    update: (params: { id: string; name: string; description: string; body: string }) =>
+      ipcRenderer.invoke('skills:update', params) as Promise<Skill>,
+    delete: (params: { id: string }) =>
+      ipcRenderer.invoke('skills:delete', params) as Promise<void>,
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get') as Promise<AppSettings>,

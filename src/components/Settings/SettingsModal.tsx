@@ -6,6 +6,7 @@ import { ProviderDetail } from './ProviderDetail';
 import { DefaultModelSection } from './DefaultModelSection';
 import { KnowledgeSection } from './KnowledgeSection';
 import { SelectionSection } from './SelectionSection';
+import { SkillsSection } from './SkillsSection';
 
 export function SettingsModal() {
   const open = useUiStore((s) => s.settingsOpen);
@@ -78,6 +79,13 @@ export function SettingsModal() {
           >
             <SelectionIcon />
           </SidebarItem>
+          <SidebarItem
+            label="Skill"
+            active={section === 'skills'}
+            onClick={() => openSettings('skills')}
+          >
+            <SkillIcon />
+          </SidebarItem>
         </aside>
 
         {section === 'providers' && (
@@ -89,6 +97,7 @@ export function SettingsModal() {
         {section === 'default-model' && <DefaultModelSection />}
         {section === 'knowledge' && <KnowledgeSection />}
         {section === 'selection' && <SelectionSection />}
+        {section === 'skills' && <SkillsSection />}
 
         <button
           type="button"
@@ -162,6 +171,17 @@ function SelectionIcon() {
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="4" width="9" height="2.5" rx="1" fill="currentColor" stroke="none" opacity="0.35" />
       <path d="M2 10h14M2 13.5h9" />
+    </svg>
+  );
+}
+
+function SkillIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2L12 6H6L9 2Z" />
+      <path d="M6 6H3C2.45 6 2 6.45 2 7V15C2 15.55 2.45 16 3 16H15C15.55 16 16 15.55 16 15V7C16 6.45 15.55 6 15 6H12" />
+      <path d="M9 10V14" />
+      <path d="M7 12H11" />
     </svg>
   );
 }
