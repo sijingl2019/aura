@@ -133,9 +133,9 @@ export function SkillsSection() {
     : null;
 
   return (
-    <div className="flex h-full gap-6">
+    <div className="flex h-full w-full gap-6">
       {/* Skill List */}
-      <div className="w-56 overflow-y-auto border-r border-black/5 px-4 pt-4">
+      <div className="w-40 shrink-0 overflow-y-auto border-r border-black/5 px-3 pt-4">
         <button
           onClick={() => {
             setIsCreating(true);
