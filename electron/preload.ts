@@ -7,6 +7,7 @@ import type {
   DifyKnowledge,
   DifyKnowledgeConfig,
   LlmStreamParams,
+  McpServerConfig,
   PopupParams,
   PopupStreamEvent,
   ProviderConfigInput,
@@ -91,6 +92,10 @@ const api = {
       ipcRenderer.invoke('settings:listDifyKnowledges') as Promise<DifyKnowledge[]>,
     setSelectionToolbar: (params: SelectionToolbarConfig) =>
       ipcRenderer.invoke('settings:setSelectionToolbar', params) as Promise<AppSettings>,
+    upsertMcpServer: (server: McpServerConfig) =>
+      ipcRenderer.invoke('settings:upsertMcpServer', server) as Promise<AppSettings>,
+    deleteMcpServer: (params: { id: string }) =>
+      ipcRenderer.invoke('settings:deleteMcpServer', params) as Promise<AppSettings>,
   },
   popup: {
     open: (params: { action: string; text: string; screenX: number; screenY: number }) =>

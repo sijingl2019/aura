@@ -5,6 +5,7 @@ import type {
   AppSettings,
   DefaultModelRef,
   DifyKnowledgeConfig,
+  McpServerConfig,
   ProviderConfig,
   ProviderConfigInput,
   SelectionAction,
@@ -193,6 +194,29 @@ export function getSelectionToolbar(): SelectionToolbarConfig {
 export function setSelectionToolbar(config: SelectionToolbarConfig): AppSettings {
   const current = load();
   current.selectionToolbar = config;
+  save(current);
+  return current;
+}
+
+export function upsertMcpServer(server: McpServerConfig): AppSettings {
+  const current = load();
+  if (!current.mcpServers) current.mcpServers = [];
+  const idx = current.mcpServers.findIndex((s) => s.id === server.id);
+  if (idx >= 0) {
+    current.mcpServers[idx] = server;
+  } else {
+    current.mcpServers.push(server);
+  }
+  save(current);
+  return current;
+}
+
+export function deleteMcpServer(id: string): AppSettings {
+  const current = load();
+  if (!current.mcpServers) return current;
+  const target = current.mcpServers.find((s) => s.id === id);
+  if (!target || target.builtin) return current;
+  current.mcpServers = current.mcpServers.filter((s) => s.id !== id);
   save(current);
   return current;
 }

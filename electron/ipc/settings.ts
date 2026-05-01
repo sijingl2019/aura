@@ -1,13 +1,15 @@
 import { ipcMain } from 'electron';
-import type { DefaultModelRef, DifyKnowledge, DifyKnowledgeConfig, ProviderConfigInput, SelectionToolbarConfig } from '@shared/types';
+import type { DefaultModelRef, DifyKnowledge, DifyKnowledgeConfig, McpServerConfig, ProviderConfigInput, SelectionToolbarConfig } from '@shared/types';
 import {
   deleteProvider,
+  deleteMcpServer,
   getDifyKnowledge,
   getSettings,
   reorderProviders,
   setDefaultModel,
   setDifyKnowledge,
   setSelectionToolbar,
+  upsertMcpServer,
   upsertProvider,
 } from '../config/store';
 import { syncSelectionConfig } from './selectionIpc';
@@ -64,4 +66,12 @@ export function registerSettingsIpc(): void {
     syncSelectionConfig();
     return result;
   });
+
+  ipcMain.handle('settings:upsertMcpServer', (_e, server: McpServerConfig) =>
+    upsertMcpServer(server),
+  );
+
+  ipcMain.handle('settings:deleteMcpServer', (_e, params: { id: string }) =>
+    deleteMcpServer(params.id),
+  );
 }

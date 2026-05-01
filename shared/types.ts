@@ -193,11 +193,39 @@ export interface ToolbarAPI {
   close: () => Promise<void>;
 }
 
+export type McpTransportType = 'builtin' | 'stdio' | 'sse';
+
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  builtin?: boolean;
+  type: McpTransportType;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+}
+
+export interface McpMarketItem {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  type: 'stdio' | 'sse';
+  command?: string;
+  args?: string[];
+  url?: string;
+  homepage?: string;
+}
+
 export interface AppSettings {
   providers: ProviderConfig[];
   defaultModel?: DefaultModelRef;
   difyKnowledge?: DifyKnowledgeConfig;
   selectionToolbar?: SelectionToolbarConfig;
+  mcpServers?: McpServerConfig[];
 }
 
 export type ProviderConfigInput = Omit<ProviderConfig, 'builtin' | 'order'> &
@@ -212,6 +240,8 @@ export interface SettingsAPI {
   setDifyKnowledge: (params: DifyKnowledgeConfig | null) => Promise<AppSettings>;
   listDifyKnowledges: () => Promise<DifyKnowledge[]>;
   setSelectionToolbar: (params: SelectionToolbarConfig) => Promise<AppSettings>;
+  upsertMcpServer: (server: McpServerConfig) => Promise<AppSettings>;
+  deleteMcpServer: (params: { id: string }) => Promise<AppSettings>;
 }
 
 export interface WorkspaceFile {

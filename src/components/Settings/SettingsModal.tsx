@@ -7,6 +7,7 @@ import { DefaultModelSection } from './DefaultModelSection';
 import { KnowledgeSection } from './KnowledgeSection';
 import { SelectionSection } from './SelectionSection';
 import { SkillsSection } from './SkillsSection';
+import { McpSection } from './McpSection';
 
 export function SettingsModal() {
   const open = useUiStore((s) => s.settingsOpen);
@@ -102,6 +103,14 @@ export function SettingsModal() {
             >
               <SkillIcon />
             </SidebarItem>
+            <SidebarItem
+              label="MCP"
+              active={section === 'mcp'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('mcp')}
+            >
+              <McpIcon />
+            </SidebarItem>
           </div>
 
           <button
@@ -125,6 +134,7 @@ export function SettingsModal() {
         {section === 'knowledge' && <KnowledgeSection />}
         {section === 'selection' && <SelectionSection />}
         {section === 'skills' && <SkillsSection />}
+        {section === 'mcp' && <McpSection />}
 
         <button
           type="button"
@@ -213,6 +223,15 @@ function SkillIcon() {
       <path d="M6 6H3C2.45 6 2 6.45 2 7V15C2 15.55 2.45 16 3 16H15C15.55 16 16 15.55 16 15V7C16 6.45 15.55 6 15 6H12" />
       <path d="M9 10V14" />
       <path d="M7 12H11" />
+    </svg>
+  );
+}
+
+function McpIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="14" height="9" rx="1.5" />
+      <path d="M5 5V4a2 2 0 014 0v1M9 9v2M6.5 9.5h5" />
     </svg>
   );
 }
