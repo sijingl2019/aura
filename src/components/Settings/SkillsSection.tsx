@@ -132,10 +132,19 @@ export function SkillsSection() {
     ? skills.find((s) => s.id === selectedSkillId)
     : null;
 
+  // 在编辑状态下使用纵向布局，给编辑器更多空间
+  const isEditing = isCreating || selectedSkillId;
+  const containerClass = isEditing
+    ? 'flex h-full flex-col gap-6'
+    : 'flex h-full gap-6';
+  const listClass = isEditing
+    ? 'max-h-32 overflow-y-auto border-b border-black/5 pb-3 px-4 pt-4'
+    : 'w-56 overflow-y-auto border-r border-black/5 px-4 pt-4';
+
   return (
-    <div className="flex h-full gap-6">
+    <div className={containerClass}>
       {/* Skill List */}
-      <div className="w-56 overflow-y-auto border-r border-black/5 px-4 pt-4">
+      <div className={listClass}>
         <button
           onClick={() => {
             setIsCreating(true);
@@ -149,23 +158,43 @@ export function SkillsSection() {
           + 新建 Skill
         </button>
 
-        <div className="space-y-2">
-          {skills.map((skill) => (
-            <button
-              key={skill.id}
-              onClick={() => handleSelectSkill(skill.id)}
-              className={clsx(
-                'w-full rounded-lg px-3 py-2 text-left text-sm transition-colors',
-                selectedSkillId === skill.id
-                  ? 'bg-accent/20 text-accent'
-                  : 'hover:bg-surface-muted'
-              )}
-            >
-              <div className="font-medium">{skill.name}</div>
-              <div className="text-xs text-black/60">{skill.description}</div>
-            </button>
-          ))}
-        </div>
+        {!isEditing && (
+          <div className="space-y-2">
+            {skills.map((skill) => (
+              <button
+                key={skill.id}
+                onClick={() => handleSelectSkill(skill.id)}
+                className={clsx(
+                  'w-full rounded-lg px-3 py-2 text-left text-sm transition-colors',
+                  selectedSkillId === skill.id
+                    ? 'bg-accent/20 text-accent'
+                    : 'hover:bg-surface-muted'
+                )}
+              >
+                <div className="font-medium">{skill.name}</div>
+                <div className="text-xs text-black/60">{skill.description}</div>
+              </button>
+            ))}
+          </div>
+        )}
+        {isEditing && (
+          <div className="inline-flex flex-wrap gap-2">
+            {skills.map((skill) => (
+              <button
+                key={skill.id}
+                onClick={() => handleSelectSkill(skill.id)}
+                className={clsx(
+                  'rounded-md px-2 py-1 text-xs transition-colors',
+                  selectedSkillId === skill.id
+                    ? 'bg-accent/20 text-accent'
+                    : 'bg-surface-muted hover:bg-surface-sunken'
+                )}
+              >
+                {skill.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Editor */}
