@@ -15,6 +15,7 @@ interface RunParams {
   conversationId: string;
   userText: string;
   skillId?: string;
+  skillName?: string;
   cwd: string;
   providerCfg: ProviderConfig;
   modelId: string;
@@ -29,7 +30,7 @@ export function abortRun(streamId: string): void {
 }
 
 export async function run(params: RunParams): Promise<void> {
-  const { streamId, conversationId, userText, skillId, cwd, providerCfg, modelId, skills, webContents } = params;
+  const { streamId, conversationId, userText, skillId, skillName, cwd, providerCfg, modelId, skills, webContents } = params;
 
   const send = (event: StreamEvent) => {
     if (!webContents.isDestroyed()) webContents.send('llm:event', event);
@@ -38,7 +39,7 @@ export async function run(params: RunParams): Promise<void> {
   // Sync prefix: persist user message before any await so a crash won't lose it
   const history = listMessages(conversationId);
   const isFirstUserMsg = history.every((m) => m.role !== 'user');
-  appendMessage({ conversationId, role: 'user', content: userText });
+  appendMessage({ conversationId, role: 'user', content: userText, skillName });
   if (isFirstUserMsg) {
     const title = userText.trim().split(/\s+/).slice(0, 8).join(' ').slice(0, 60) || '新对话';
     renameConversation(conversationId, title);

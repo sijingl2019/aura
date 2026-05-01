@@ -13,8 +13,16 @@ export function MessageBubble({ message, streamingToolCalls, isStreaming }: Mess
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-2xl bg-surface-muted px-4 py-2 text-sm text-ink whitespace-pre-wrap">
-          {message.content}
+        <div className="max-w-[80%] rounded-2xl bg-surface-muted px-4 py-2 text-sm text-ink">
+          {message.skillName && (
+            <div className="mb-1.5">
+              <span className="inline-flex items-center gap-1 rounded-md bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent">
+                <span className="opacity-60">/</span>
+                {message.skillName}
+              </span>
+            </div>
+          )}
+          <span className="whitespace-pre-wrap">{message.content}</span>
         </div>
       </div>
     );

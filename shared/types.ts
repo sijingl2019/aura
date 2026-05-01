@@ -17,6 +17,7 @@ export interface ChatMessage {
   model?: string;
   inputTokens?: number;
   outputTokens?: number;
+  skillName?: string;
 }
 
 export interface Conversation {
@@ -71,6 +72,7 @@ export interface LlmStreamParams {
   conversationId: string;
   userText: string;
   skillId?: string;
+  skillName?: string;
 }
 
 export interface LlmAPI {

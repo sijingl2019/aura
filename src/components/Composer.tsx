@@ -57,10 +57,14 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
     }
 
     setInput('');
+    const sid = activeSkillId;
+    const sname = activeSkill?.name;
+    setActiveSkillId(null);
     await sendMessage({
       conversationId: targetId,
       userText: text,
-      skillId: activeSkillId ?? undefined,
+      skillId: sid ?? undefined,
+      skillName: sname,
     });
   };
 

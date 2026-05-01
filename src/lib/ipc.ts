@@ -59,6 +59,7 @@ export async function sendMessage(params: {
   conversationId: string;
   userText: string;
   skillId?: string;
+  skillName?: string;
 }): Promise<void> {
   const convStore = useConversationsStore.getState();
   const current = convStore.messages[params.conversationId] ?? [];
@@ -68,6 +69,7 @@ export async function sendMessage(params: {
     role: 'user',
     content: params.userText,
     createdAt: Date.now(),
+    skillName: params.skillName,
   };
   convStore.replaceMessages(params.conversationId, [...current, optimistic]);
 

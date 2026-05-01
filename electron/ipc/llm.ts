@@ -84,6 +84,7 @@ export function registerLlmIpc(deps: { skills: SkillStore; cwd: string }): void 
       conversationId: params.conversationId,
       userText: params.userText,
       skillId: params.skillId,
+      skillName: params.skillName,
       cwd: deps.cwd,
       providerCfg,
       modelId,
