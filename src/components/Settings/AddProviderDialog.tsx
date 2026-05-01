@@ -75,7 +75,7 @@ export function AddProviderDialog({ open, onClose, onCreated }: AddProviderDialo
       id,
       name: trimmedName,
       kind,
-      enabled: true,
+      enabled: false,
       apiKey: '',
       baseURL: '',
       icon,
