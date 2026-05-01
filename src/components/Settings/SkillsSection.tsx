@@ -286,13 +286,15 @@ function SkillEditor({
         />
       </div>
 
-      <div className="flex gap-3 pt-2">
-        <button
-          onClick={onSave}
-          className="flex-1 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent/90"
-        >
-          {isNew ? '创建' : '保存'}
-        </button>
+      <div className="flex justify-end gap-3 pt-2">
+        {isNew && onCancel && (
+          <button
+            onClick={onCancel}
+            className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium hover:bg-surface-muted"
+          >
+            取消
+          </button>
+        )}
         {!isNew && onDelete && (
           <button
             onClick={onDelete}
@@ -301,14 +303,12 @@ function SkillEditor({
             删除
           </button>
         )}
-        {isNew && onCancel && (
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-lg border border-black/10 px-4 py-2 text-sm font-medium hover:bg-surface-muted"
-          >
-            取消
-          </button>
-        )}
+        <button
+          onClick={onSave}
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent/90"
+        >
+          {isNew ? '创建' : '保存'}
+        </button>
       </div>
     </div>
   );
