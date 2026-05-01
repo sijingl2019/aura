@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { app } from 'electron';
+import os from 'node:os';
 import type { Skill } from '@shared/types';
 
-const SKILLS_DIR = path.join(app.getPath('userData'), 'skills');
+const SKILLS_DIR = path.join(os.homedir(), '.qiko-aura', 'skills');
 
 async function ensureSkillsDir(): Promise<void> {
   try {

@@ -68,6 +68,11 @@ const api = {
       ipcRenderer.invoke('skills:update', params) as Promise<Skill>,
     delete: (params: { id: string }) =>
       ipcRenderer.invoke('skills:delete', params) as Promise<void>,
+    onUpdated: (cb: () => void) => {
+      const listener = () => cb();
+      ipcRenderer.on('skills:updated', listener);
+      return () => ipcRenderer.off('skills:updated', listener);
+    },
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get') as Promise<AppSettings>,

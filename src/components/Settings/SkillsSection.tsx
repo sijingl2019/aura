@@ -21,6 +21,7 @@ export function SkillsSection() {
 
   useEffect(() => {
     loadSkills();
+    return window.api.skills.onUpdated(loadSkills);
   }, []);
 
   const loadSkills = async () => {

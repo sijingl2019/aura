@@ -23,7 +23,9 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
   const isStreaming = streaming.streamId !== null;
 
   useEffect(() => {
-    window.api.skills.list().then(setSkills).catch(() => setSkills([]));
+    const load = () => window.api.skills.list().then(setSkills).catch(() => setSkills([]));
+    load();
+    return window.api.skills.onUpdated(load);
   }, []);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { initDb } from './db/index';
 import { registerDbIpc } from './ipc/db';
 import { registerLlmIpc } from './ipc/llm';
@@ -184,12 +185,25 @@ const mcpManager = new McpClientManager();
 app.whenReady().then(async () => {
   initDb();
 
-  const userSkillsDir = path.join(app.getPath('userData'), 'skills');
+  const userSkillsDir = path.join(os.homedir(), '.qiko-aura', 'skills');
   const resourceSkillsDir = path.join(process.resourcesPath ?? app.getAppPath(), 'skills');
   if (!fs.existsSync(userSkillsDir)) fs.mkdirSync(userSkillsDir, { recursive: true });
 
   const skills = new SkillStore([userSkillsDir, resourceSkillsDir]);
   await skills.reload();
+
+  // Watch for file system changes in userSkillsDir and auto-reload
+  let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+  fs.watch(userSkillsDir, { recursive: true }, () => {
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(async () => {
+      await skills.reload();
+      // Notify all renderer windows to refresh the skill list
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('skills:updated');
+      }
+    }, 300);
+  });
 
   const mcpSetups: Array<{
     id: string;

@@ -91,6 +91,7 @@ export interface SkillsAPI {
   create: (params: { name: string; description: string; body: string }) => Promise<Skill>;
   update: (params: { id: string; name: string; description: string; body: string }) => Promise<Skill>;
   delete: (params: { id: string }) => Promise<void>;
+  onUpdated: (cb: () => void) => () => void;
 }
 
 export type ProviderKind = 'openai' | 'anthropic';
