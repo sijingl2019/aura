@@ -67,22 +67,64 @@ export function MessageBubble({ message, streamingToolCalls, isStreaming }: Mess
   return null;
 }
 
+type ToolKind = 'skill' | 'mcp' | 'builtin';
+
+const BUILTIN_TOOLS = new Set(['read_file', 'write_file', 'list_dir', 'exec_shell', 'web_fetch']);
+
+function getToolKind(name: string): ToolKind {
+  if (name.startsWith('mcp__')) return 'mcp';
+  if (BUILTIN_TOOLS.has(name)) return 'builtin';
+  return 'builtin';
+}
+
+const TOOL_KIND_STYLES: Record<ToolKind, { badge: string; border: string; icon: string; label: string }> = {
+  builtin: {
+    badge: 'bg-blue-50 text-blue-600',
+    border: 'border-blue-100',
+    icon: '🔧',
+    label: 'Tool',
+  },
+  mcp: {
+    badge: 'bg-purple-50 text-purple-600',
+    border: 'border-purple-100',
+    icon: '🔌',
+    label: 'MCP',
+  },
+  skill: {
+    badge: 'bg-accent/10 text-accent',
+    border: 'border-accent/20',
+    icon: '/',
+    label: 'Skill',
+  },
+};
+
 function ToolCallCard({ call }: { call: ToolCall | StreamingToolCall }) {
   const [open, setOpen] = useState(false);
   const streaming = call as StreamingToolCall;
   const result = streaming.result;
   const argsPreview = call.arguments.length > 80 ? call.arguments.slice(0, 80) + '…' : call.arguments;
 
+  const kind = getToolKind(call.name);
+  const styles = TOOL_KIND_STYLES[kind];
+
+  // For MCP tools, strip the mcp__serverId__ prefix for display
+  const displayName = kind === 'mcp'
+    ? call.name.replace(/^mcp__[^_]+__/, '')
+    : call.name;
+
   return (
-    <div className="rounded-xl border border-black/5 bg-surface-muted/60 px-3 py-2 text-xs">
+    <div className={`rounded-xl border bg-surface-muted/60 px-3 py-2 text-xs ${styles.border}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="flex items-center gap-2">
-          <span>🔧</span>
-          <span className="font-medium">{call.name}</span>
+          <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium ${styles.badge}`}>
+            <span>{styles.icon}</span>
+            <span>{styles.label}</span>
+          </span>
+          <span className="font-medium text-ink">{displayName}</span>
           <span className="text-ink-subtle">{argsPreview}</span>
         </span>
         <span className="text-ink-subtle">
