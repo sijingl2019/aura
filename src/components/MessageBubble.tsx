@@ -7,9 +7,10 @@ interface MessageBubbleProps {
   message: ChatMessage;
   streamingToolCalls?: StreamingToolCall[];
   isStreaming?: boolean;
+  toolResultsMap?: Map<string, string>;
 }
 
-export function MessageBubble({ message, streamingToolCalls, isStreaming }: MessageBubbleProps) {
+export function MessageBubble({ message, streamingToolCalls, isStreaming, toolResultsMap }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -29,11 +30,7 @@ export function MessageBubble({ message, streamingToolCalls, isStreaming }: Mess
   }
 
   if (message.role === 'tool') {
-    return (
-      <div className="flex justify-start">
-        <ToolResultCard content={message.content} ok />
-      </div>
-    );
+    return null; // tool results are shown inline inside ToolCallCard
   }
 
   if (message.role === 'assistant') {
@@ -50,7 +47,7 @@ export function MessageBubble({ message, streamingToolCalls, isStreaming }: Mess
           {toolCalls && toolCalls.length > 0 && (
             <div className="flex flex-col gap-1">
               {toolCalls.map((tc) => (
-                <ToolCallCard key={tc.id} call={tc} />
+                <ToolCallCard key={tc.id} call={tc} storedResult={toolResultsMap?.get(tc.id)} />
               ))}
             </div>
           )}
@@ -98,10 +95,12 @@ const TOOL_KIND_STYLES: Record<ToolKind, { badge: string; border: string; icon: 
   },
 };
 
-function ToolCallCard({ call }: { call: ToolCall | StreamingToolCall }) {
+function ToolCallCard({ call, storedResult }: { call: ToolCall | StreamingToolCall; storedResult?: string }) {
   const [open, setOpen] = useState(false);
   const streaming = call as StreamingToolCall;
-  const result = streaming.result;
+  // During streaming: use live result; after streaming: fall back to stored DB result
+  const result: { ok: boolean; preview: string } | undefined =
+    streaming.result ?? (storedResult !== undefined ? { ok: true, preview: storedResult.slice(0, 200) } : undefined);
   const argsPreview = call.arguments.length > 80 ? call.arguments.slice(0, 80) + '…' : call.arguments;
 
   const kind = getToolKind(call.name);
@@ -136,36 +135,12 @@ function ToolCallCard({ call }: { call: ToolCall | StreamingToolCall }) {
           <pre className="overflow-x-auto rounded bg-surface-sunken p-2 text-[11px] text-ink">
             {call.arguments || '{}'}
           </pre>
-          {result && (
+          {(result || storedResult) && (
             <pre className="overflow-x-auto rounded bg-surface-sunken p-2 text-[11px] text-ink">
-              {result.preview}
+              {storedResult ?? result?.preview}
             </pre>
           )}
         </div>
-      )}
-    </div>
-  );
-}
-
-function ToolResultCard({ content, ok }: { content: string; ok: boolean }) {
-  const [open, setOpen] = useState(false);
-  const preview = content.length > 120 ? content.slice(0, 120) + '…' : content;
-  return (
-    <div className="max-w-[85%] rounded-xl border border-black/5 bg-surface-muted/40 px-3 py-2 text-xs">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 text-left"
-      >
-        <span className="flex items-center gap-2">
-          <span>{ok ? '✓' : '✗'}</span>
-          <span className="text-ink-subtle">{preview}</span>
-        </span>
-      </button>
-      {open && (
-        <pre className="mt-2 overflow-x-auto rounded bg-surface-sunken p-2 text-[11px] text-ink">
-          {content}
-        </pre>
       )}
     </div>
   );

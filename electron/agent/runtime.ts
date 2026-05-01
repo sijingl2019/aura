@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import { Agent } from '@mariozechner/pi-agent-core';
 import type { AgentEvent } from '@mariozechner/pi-agent-core';
+import { streamSimple } from '@mariozechner/pi-ai';
 import type { WebContents } from 'electron';
 import type { ProviderConfig, StreamEvent } from '@shared/types';
 import { appendMessage, listMessages, renameConversation } from '../db/repo';
@@ -9,6 +12,57 @@ import { toPiModel } from '../providers/to-pi-model';
 import { toAgentTool } from '../tools/to-agent-tool';
 import { chatMessagesToAgent } from './message-bridge';
 import type { SkillStore } from '../skills/loader';
+
+const AT_REF_RE = /@([\w./\\-]+)/g;
+const MAX_FILE_BYTES = 200_000; // 200 KB per file
+
+/**
+ * Find @filepath references in the message, read each file, and append their
+ * contents below the original text so the LLM has the actual source available.
+ */
+function expandAtReferences(text: string, cwd: string): string {
+  const refs = [...text.matchAll(AT_REF_RE)];
+  if (refs.length === 0) return text;
+
+  const blocks: string[] = [];
+  const seen = new Set<string>();
+
+  for (const [, relPath] of refs) {
+    if (relPath.endsWith('/') || seen.has(relPath)) continue;
+    seen.add(relPath);
+
+    const fullPath = path.resolve(cwd, relPath);
+    if (!fullPath.startsWith(cwd + path.sep) && fullPath !== cwd) continue; // security
+
+    try {
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) continue;
+      if (stat.size > MAX_FILE_BYTES) {
+        blocks.push(`@${relPath} (文件过大 ${Math.round(stat.size / 1024)} KB，已跳过)`);
+        continue;
+      }
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const ext = path.extname(relPath).slice(1);
+      blocks.push(`\`${relPath}\`:\n\`\`\`${ext}\n${content}\n\`\`\``);
+    } catch {
+      // file not found or binary — silently skip
+    }
+  }
+
+  if (blocks.length === 0) return text;
+  return `${text}\n\n${blocks.join('\n\n')}`;
+}
+
+// MiniMax and other Anthropic-compatible third-party endpoints do not support
+// Anthropic prompt-caching headers (cache_control). Passing cacheRetention:'none'
+// tells pi-ai's anthropic provider to omit the cache_control field so these
+// endpoints don't silently drop the system prompt.
+function makeStreamFn(baseUrl: string) {
+  const isNativeAnthropic = baseUrl.includes('api.anthropic.com');
+  if (isNativeAnthropic) return undefined; // use pi-ai default behaviour
+  return (model: Parameters<typeof streamSimple>[0], context: Parameters<typeof streamSimple>[1], options?: Parameters<typeof streamSimple>[2]) =>
+    streamSimple(model, context, { ...options, cacheRetention: 'none' });
+}
 
 interface RunParams {
   streamId: string;
@@ -51,6 +105,8 @@ export async function run(params: RunParams): Promise<void> {
     if (skill) systemParts.push(skill.body);
   }
 
+  const systemPrompt = systemParts.join('\n\n');
+
   const model = toPiModel(providerCfg, modelId);
   const agentTools = listTools().map((t) => toAgentTool(t, cwd));
   // Pass history captured BEFORE the new user message — agent.prompt() adds it
@@ -58,13 +114,14 @@ export async function run(params: RunParams): Promise<void> {
 
   const agent = new Agent({
     initialState: {
-      systemPrompt: systemParts.join('\n\n'),
+      systemPrompt,
       model,
       tools: agentTools,
       messages: existingMessages,
     },
     toolExecution: 'parallel',
     getApiKey: async () => providerCfg.apiKey,
+    streamFn: makeStreamFn(providerCfg.baseURL),
   });
 
   activeAgents.set(streamId, agent);
@@ -136,21 +193,19 @@ export async function run(params: RunParams): Promise<void> {
           });
         }
 
-        // Persist tool results — pi-ai bundles all results from one turn into one ToolResultMessage
+        // Persist tool results — each entry is a ToolResultMessage with its own toolCallId
         for (const tr of event.toolResults) {
-          const results: any[] = (tr as any).content ?? [];
-          for (const r of results) {
-            const content = ((r.content ?? []) as any[])
-              .filter((c) => c.type === 'text')
-              .map((c) => c.text as string)
-              .join('');
-            appendMessage({
-              conversationId,
-              role: 'tool',
-              content,
-              toolCallId: r.toolCallId,
-            });
-          }
+          const trMsg = tr as unknown as { toolCallId: string; content: { type: string; text: string }[] };
+          const content = (trMsg.content ?? [])
+            .filter((c) => c.type === 'text')
+            .map((c) => c.text)
+            .join('');
+          appendMessage({
+            conversationId,
+            role: 'tool',
+            content,
+            toolCallId: trMsg.toolCallId,
+          });
         }
         break;
       }
@@ -162,7 +217,10 @@ export async function run(params: RunParams): Promise<void> {
   });
 
   try {
-    await agent.prompt({ role: 'user', content: userText, timestamp: Date.now() });
+    // Expand @filepath references so the LLM receives actual file contents.
+    // The DB stores the original userText; only the prompt sent to the model is expanded.
+    const promptText = expandAtReferences(userText, cwd);
+    await agent.prompt({ role: 'user', content: promptText, timestamp: Date.now() });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     send({ type: 'error', streamId, message });

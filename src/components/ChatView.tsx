@@ -25,8 +25,22 @@ export function ChatView({ conversationId }: ChatViewProps) {
   const isActiveStream =
     streaming.streamId !== null && streaming.conversationId === conversationId;
 
+  // Map toolCallId → stored tool result content for historical messages
+  const toolResultsMap = useMemo<Map<string, string>>(() => {
+    const map = new Map<string, string>();
+    for (const m of messages) {
+      if (m.role === 'tool' && m.toolCallId) {
+        map.set(m.toolCallId, m.content);
+      }
+    }
+    return map;
+  }, [messages]);
+
   const displayed = useMemo<ChatMessage[]>(() => {
-    if (!isActiveStream) return messages;
+    // Never show standalone tool-result bubbles; their content surfaces inside ToolCallCard
+    const filtered = messages.filter((m) => m.role !== 'tool');
+
+    if (!isActiveStream) return filtered;
     if (!streaming.text && streaming.toolCalls.length === 0) {
       const placeholder: ChatMessage = {
         id: '__streaming__',
@@ -35,7 +49,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
         content: '',
         createdAt: Date.now(),
       };
-      return [...messages, placeholder];
+      return [...filtered, placeholder];
     }
     const streamingMsg: ChatMessage = {
       id: '__streaming__',
@@ -49,7 +63,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
       })),
       createdAt: Date.now(),
     };
-    return [...messages, streamingMsg];
+    return [...filtered, streamingMsg];
   }, [isActiveStream, messages, streaming.text, streaming.toolCalls, conversationId]);
 
   return (
@@ -71,6 +85,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
               message={m}
               streamingToolCalls={isStreamingThis ? streaming.toolCalls : undefined}
               isStreaming={isStreamingThis}
+              toolResultsMap={isStreamingThis ? undefined : toolResultsMap}
             />
           );
         })}

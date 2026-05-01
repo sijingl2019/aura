@@ -16,6 +16,7 @@ import type {
   SkillListItem,
   StreamEvent,
   ToolbarParams,
+  WorkspaceFile,
 } from '@shared/types';
 
 const api = {
@@ -118,6 +119,18 @@ const api = {
     resize: (params: { width: number; height: number }) =>
       ipcRenderer.invoke('toolbar:resize', params) as Promise<void>,
     close: () => ipcRenderer.invoke('toolbar:close') as Promise<void>,
+  },
+  workspace: {
+    getCwd: () => ipcRenderer.invoke('workspace:getCwd') as Promise<string>,
+    setCwd: (cwd: string) => ipcRenderer.invoke('workspace:setCwd', cwd) as Promise<string>,
+    openFolderDialog: () => ipcRenderer.invoke('workspace:openFolderDialog') as Promise<string | null>,
+    listFiles: (params: { dir?: string; query?: string }) =>
+      ipcRenderer.invoke('workspace:listFiles', params) as Promise<WorkspaceFile[]>,
+    onCwdChanged: (cb: (cwd: string) => void) => {
+      const listener = (_: unknown, cwd: string) => cb(cwd);
+      ipcRenderer.on('workspace:cwdChanged', listener);
+      return () => ipcRenderer.off('workspace:cwdChanged', listener);
+    },
   },
 };
 

@@ -7,6 +7,7 @@ import { registerDbIpc } from './ipc/db';
 import { registerLlmIpc } from './ipc/llm';
 import { registerSkillsIpc } from './ipc/skills';
 import { registerSettingsIpc } from './ipc/settings';
+import { registerWorkspaceIpc } from './ipc/workspace';
 import { registerPopupIpc } from './ipc/popupIpc';
 import { registerToolbarIpc } from './ipc/toolbarIpc';
 import { initSelectionIpc, syncSelectionConfig, teardownSelectionIpc } from './ipc/selectionIpc';
@@ -232,12 +233,11 @@ app.whenReady().then(async () => {
     console.warn(`[mcp] failed to list tools: ${(e as Error).message}`);
   }
 
-  const cwd = process.cwd();
-
   registerDbIpc();
-  registerLlmIpc({ skills, cwd });
+  registerLlmIpc({ skills });
   registerSkillsIpc(skills);
   registerSettingsIpc();
+  registerWorkspaceIpc();
   registerPopupIpc();
   registerToolbarIpc();
 

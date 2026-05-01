@@ -214,6 +214,20 @@ export interface SettingsAPI {
   setSelectionToolbar: (params: SelectionToolbarConfig) => Promise<AppSettings>;
 }
 
+export interface WorkspaceFile {
+  name: string;
+  path: string; // relative to cwd
+  isDir: boolean;
+}
+
+export interface WorkspaceAPI {
+  getCwd: () => Promise<string>;
+  setCwd: (cwd: string) => Promise<string>;
+  openFolderDialog: () => Promise<string | null>;
+  listFiles: (params: { dir?: string; query?: string }) => Promise<WorkspaceFile[]>;
+  onCwdChanged: (cb: (cwd: string) => void) => () => void;
+}
+
 export interface ElectronAPI {
   ping: () => Promise<string>;
   window: WindowAPI;
@@ -223,6 +237,7 @@ export interface ElectronAPI {
   settings: SettingsAPI;
   popup: PopupAPI;
   toolbar: ToolbarAPI;
+  workspace: WorkspaceAPI;
 }
 
 declare global {

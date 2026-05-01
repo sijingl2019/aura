@@ -4,8 +4,9 @@ import { abortRun, newStreamId, run } from '../agent/runtime';
 import { getSettings, resolveProvider } from '../config/store';
 import { appendMessage, getConversation, listMessages, renameConversation } from '../db/repo';
 import type { SkillStore } from '../skills/loader';
+import { workspaceStore } from '../workspace/store';
 
-export function registerLlmIpc(deps: { skills: SkillStore; cwd: string }): void {
+export function registerLlmIpc(deps: { skills: SkillStore }): void {
   ipcMain.handle('llm:stream', (event, params: LlmStreamParams) => {
     const streamId = newStreamId();
     const wc = event.sender;
@@ -85,7 +86,7 @@ export function registerLlmIpc(deps: { skills: SkillStore; cwd: string }): void 
       userText: params.userText,
       skillId: params.skillId,
       skillName: params.skillName,
-      cwd: deps.cwd,
+      cwd: workspaceStore.getCwd(),
       providerCfg,
       modelId,
       skills: deps.skills,
