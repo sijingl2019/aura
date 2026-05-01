@@ -18,6 +18,16 @@ export function SettingsModal() {
   const providers = useSettingsStore((s) => s.providers);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [navCollapsed, setNavCollapsed] = useState(() =>
+    localStorage.getItem('settings-nav-collapsed') !== 'false'
+  );
+
+  const toggleNav = () => {
+    setNavCollapsed((v) => {
+      localStorage.setItem('settings-nav-collapsed', String(!v));
+      return !v;
+    });
+  };
 
   useEffect(() => {
     if (open && !loaded) void load();
@@ -50,42 +60,59 @@ export function SettingsModal() {
         className="relative flex h-[82vh] max-h-[760px] w-[92vw] max-w-[1180px] overflow-hidden rounded-2xl bg-surface shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <aside className="flex w-[56px] shrink-0 flex-col items-center gap-1 border-r border-black/5 bg-surface-muted py-3">
-          <SidebarItem
-            label="模型服务"
-            active={section === 'providers'}
-            onClick={() => openSettings('providers')}
+        <aside className={`flex shrink-0 flex-col border-r border-black/5 bg-surface-muted py-3 transition-all duration-200 ${navCollapsed ? 'w-[56px] items-center' : 'w-[140px] items-stretch px-2'}`}>
+          <div className={`flex flex-1 flex-col gap-1 ${navCollapsed ? 'items-center' : 'items-stretch'}`}>
+            <SidebarItem
+              label="模型服务"
+              active={section === 'providers'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('providers')}
+            >
+              <ModelIcon />
+            </SidebarItem>
+            <SidebarItem
+              label="默认模型"
+              active={section === 'default-model'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('default-model')}
+            >
+              <BubbleIcon />
+            </SidebarItem>
+            <SidebarItem
+              label="知识库"
+              active={section === 'knowledge'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('knowledge')}
+            >
+              <DatabaseIcon />
+            </SidebarItem>
+            <SidebarItem
+              label="划词助手"
+              active={section === 'selection'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('selection')}
+            >
+              <SelectionIcon />
+            </SidebarItem>
+            <SidebarItem
+              label="Skill"
+              active={section === 'skills'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('skills')}
+            >
+              <SkillIcon />
+            </SidebarItem>
+          </div>
+
+          <button
+            type="button"
+            title={navCollapsed ? '展开菜单' : '收起菜单'}
+            onClick={toggleNav}
+            className={`mt-1 flex items-center justify-center rounded-lg p-1.5 text-ink-subtle transition-colors hover:bg-surface-sunken hover:text-ink ${navCollapsed ? 'h-9 w-9' : 'gap-2 px-2 py-1.5'}`}
           >
-            <ModelIcon />
-          </SidebarItem>
-          <SidebarItem
-            label="默认模型"
-            active={section === 'default-model'}
-            onClick={() => openSettings('default-model')}
-          >
-            <BubbleIcon />
-          </SidebarItem>
-          <SidebarItem
-            label="知识库"
-            active={section === 'knowledge'}
-            onClick={() => openSettings('knowledge')}
-          >
-            <DatabaseIcon />
-          </SidebarItem>
-          <SidebarItem
-            label="划词助手"
-            active={section === 'selection'}
-            onClick={() => openSettings('selection')}
-          >
-            <SelectionIcon />
-          </SidebarItem>
-          <SidebarItem
-            label="Skill"
-            active={section === 'skills'}
-            onClick={() => openSettings('skills')}
-          >
-            <SkillIcon />
-          </SidebarItem>
+            <NavToggleIcon collapsed={navCollapsed} />
+            {!navCollapsed && <span className="text-xs">收起</span>}
+          </button>
         </aside>
 
         {section === 'providers' && (
@@ -116,26 +143,30 @@ function SidebarItem({
   children,
   label,
   active,
+  collapsed,
   onClick,
 }: {
   children: ReactNode;
   label: string;
   active?: boolean;
+  collapsed?: boolean;
   onClick?: () => void;
 }) {
   return (
     <button
       type="button"
-      title={label}
+      title={collapsed ? label : undefined}
       onClick={onClick}
       className={
-        'inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors ' +
+        'flex items-center rounded-lg transition-colors ' +
+        (collapsed ? 'h-9 w-9 justify-center ' : 'gap-2.5 px-2 py-2 ') +
         (active
           ? 'bg-surface text-ink shadow-sm'
           : 'text-ink-muted hover:bg-surface-sunken hover:text-ink')
       }
     >
-      {children}
+      <span className="shrink-0">{children}</span>
+      {!collapsed && <span className="truncate text-xs font-medium">{label}</span>}
     </button>
   );
 }
@@ -190,6 +221,15 @@ function CloseIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
       <path d="M3 3l8 8M11 3l-8 8" />
+    </svg>
+  );
+}
+
+function NavToggleIcon({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.25">
+      <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
+      {collapsed ? <path d="M6.5 3v10" /> : <path d="M9.5 3v10" />}
     </svg>
   );
 }
