@@ -6,6 +6,7 @@ import type {
   DefaultModelRef,
   DifyKnowledge,
   DifyKnowledgeConfig,
+  GeneralConfig,
   LlmStreamParams,
   McpServerConfig,
   PopupParams,
@@ -96,6 +97,10 @@ const api = {
       ipcRenderer.invoke('settings:upsertMcpServer', server) as Promise<AppSettings>,
     deleteMcpServer: (params: { id: string }) =>
       ipcRenderer.invoke('settings:deleteMcpServer', params) as Promise<AppSettings>,
+    setGeneral: (config: GeneralConfig) =>
+      ipcRenderer.invoke('settings:setGeneral', config) as Promise<AppSettings>,
+    getGeneral: () =>
+      ipcRenderer.invoke('settings:getGeneral') as Promise<GeneralConfig>,
   },
   popup: {
     open: (params: { action: string; text: string; screenX: number; screenY: number }) =>

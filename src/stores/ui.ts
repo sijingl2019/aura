@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type SettingsSection = 'providers' | 'default-model' | 'knowledge' | 'selection' | 'skills' | 'mcp';
+export type SettingsSection = 'providers' | 'default-model' | 'knowledge' | 'selection' | 'skills' | 'mcp' | 'general';
 
 interface UiState {
   settingsOpen: boolean;

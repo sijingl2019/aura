@@ -8,6 +8,8 @@ import { KnowledgeSection } from './KnowledgeSection';
 import { SelectionSection } from './SelectionSection';
 import { SkillsSection } from './SkillsSection';
 import { McpSection } from './McpSection';
+import { GeneralSection } from './GeneralSection';
+import { useT } from '@/i18n';
 
 export function SettingsModal() {
   const open = useUiStore((s) => s.settingsOpen);
@@ -50,6 +52,9 @@ export function SettingsModal() {
     return () => document.removeEventListener('keydown', onKey);
   }, [open, close]);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const t = useT();
+
   if (!open) return null;
 
   return (
@@ -64,7 +69,7 @@ export function SettingsModal() {
         <aside className={`flex shrink-0 flex-col border-r border-black/5 bg-surface-muted py-3 transition-all duration-200 ${navCollapsed ? 'w-[56px] items-center' : 'w-[140px] items-stretch px-2'}`}>
           <div className={`flex flex-1 flex-col gap-1 ${navCollapsed ? 'items-center' : 'items-stretch'}`}>
             <SidebarItem
-              label="模型服务"
+              label={t.nav.providers}
               active={section === 'providers'}
               collapsed={navCollapsed}
               onClick={() => openSettings('providers')}
@@ -72,7 +77,7 @@ export function SettingsModal() {
               <ModelIcon />
             </SidebarItem>
             <SidebarItem
-              label="默认模型"
+              label={t.nav.defaultModel}
               active={section === 'default-model'}
               collapsed={navCollapsed}
               onClick={() => openSettings('default-model')}
@@ -80,7 +85,7 @@ export function SettingsModal() {
               <BubbleIcon />
             </SidebarItem>
             <SidebarItem
-              label="知识库"
+              label={t.nav.knowledge}
               active={section === 'knowledge'}
               collapsed={navCollapsed}
               onClick={() => openSettings('knowledge')}
@@ -88,7 +93,7 @@ export function SettingsModal() {
               <DatabaseIcon />
             </SidebarItem>
             <SidebarItem
-              label="划词助手"
+              label={t.nav.selection}
               active={section === 'selection'}
               collapsed={navCollapsed}
               onClick={() => openSettings('selection')}
@@ -96,7 +101,7 @@ export function SettingsModal() {
               <SelectionIcon />
             </SidebarItem>
             <SidebarItem
-              label="Skill"
+              label={t.nav.skills}
               active={section === 'skills'}
               collapsed={navCollapsed}
               onClick={() => openSettings('skills')}
@@ -104,23 +109,31 @@ export function SettingsModal() {
               <SkillIcon />
             </SidebarItem>
             <SidebarItem
-              label="MCP"
+              label={t.nav.mcp}
               active={section === 'mcp'}
               collapsed={navCollapsed}
               onClick={() => openSettings('mcp')}
             >
               <McpIcon />
             </SidebarItem>
+            <SidebarItem
+              label={t.nav.general}
+              active={section === 'general'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('general')}
+            >
+              <GeneralIcon />
+            </SidebarItem>
           </div>
 
           <button
             type="button"
-            title={navCollapsed ? '展开菜单' : '收起菜单'}
+            title={navCollapsed ? t.common.expand : t.common.collapse}
             onClick={toggleNav}
             className={`mt-1 flex items-center justify-center rounded-lg p-1.5 text-ink-subtle transition-colors hover:bg-surface-sunken hover:text-ink ${navCollapsed ? 'h-9 w-9' : 'gap-2 px-2 py-1.5'}`}
           >
             <NavToggleIcon collapsed={navCollapsed} />
-            {!navCollapsed && <span className="text-xs">收起</span>}
+            {!navCollapsed && <span className="text-xs">{t.common.collapse}</span>}
           </button>
         </aside>
 
@@ -135,12 +148,13 @@ export function SettingsModal() {
         {section === 'selection' && <SelectionSection />}
         {section === 'skills' && <SkillsSection />}
         {section === 'mcp' && <McpSection />}
+        {section === 'general' && <GeneralSection />}
 
         <button
           type="button"
           onClick={close}
           className="absolute right-4 top-4 inline-flex h-7 w-7 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
-          title="关闭"
+          title={t.common.close}
         >
           <CloseIcon />
         </button>
@@ -223,6 +237,15 @@ function SkillIcon() {
       <path d="M6 6H3C2.45 6 2 6.45 2 7V15C2 15.55 2.45 16 3 16H15C15.55 16 16 15.55 16 15V7C16 6.45 15.55 6 15 6H12" />
       <path d="M9 10V14" />
       <path d="M7 12H11" />
+    </svg>
+  );
+}
+
+function GeneralIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="9" r="2" />
+      <path d="M9 2v1.5M9 14.5V16M2 9h1.5M14.5 9H16M4.1 4.1l1.1 1.1M12.8 12.8l1.1 1.1M4.1 13.9l1.1-1.1M12.8 5.2l1.1-1.1" />
     </svg>
   );
 }

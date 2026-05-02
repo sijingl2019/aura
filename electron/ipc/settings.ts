@@ -1,20 +1,26 @@
 import { ipcMain } from 'electron';
-import type { DefaultModelRef, DifyKnowledge, DifyKnowledgeConfig, McpServerConfig, ProviderConfigInput, SelectionToolbarConfig } from '@shared/types';
+import type { DefaultModelRef, DifyKnowledge, DifyKnowledgeConfig, GeneralConfig, McpServerConfig, ProviderConfigInput, SelectionToolbarConfig } from '@shared/types';
 import {
   deleteProvider,
   deleteMcpServer,
   getDifyKnowledge,
+  getGeneralConfig,
   getSettings,
   reorderProviders,
   setDefaultModel,
   setDifyKnowledge,
+  setGeneralConfig,
   setSelectionToolbar,
   upsertMcpServer,
   upsertProvider,
 } from '../config/store';
 import { syncSelectionConfig } from './selectionIpc';
 
-export function registerSettingsIpc(): void {
+export interface SettingsIpcCallbacks {
+  onTrayControl: (show: boolean) => void;
+}
+
+export function registerSettingsIpc(callbacks?: SettingsIpcCallbacks): void {
   ipcMain.handle('settings:get', () => getSettings());
 
   ipcMain.handle('settings:upsertProvider', (_e, provider: ProviderConfigInput) =>
@@ -74,4 +80,34 @@ export function registerSettingsIpc(): void {
   ipcMain.handle('settings:deleteMcpServer', (_e, params: { id: string }) =>
     deleteMcpServer(params.id),
   );
+
+  ipcMain.handle('settings:setGeneral', async (_e, config: GeneralConfig) => {
+    const prev = getGeneralConfig();
+    const result = setGeneralConfig(config);
+
+    const { session, app } = await import('electron');
+
+    // Proxy
+    if (config.proxyMode === 'system') {
+      await session.defaultSession.setProxy({ mode: 'system' });
+    } else if (config.proxyMode === 'none') {
+      await session.defaultSession.setProxy({ mode: 'direct' });
+    } else if (config.proxyMode === 'manual' && config.proxyHost) {
+      await session.defaultSession.setProxy({
+        proxyRules: `${config.proxyHost}:${config.proxyPort ?? 8080}`,
+      });
+    }
+
+    // Launch at startup
+    app.setLoginItemSettings({ openAtLogin: config.launchAtStartup });
+
+    // Tray visibility
+    if (config.showTrayIcon !== prev.showTrayIcon) {
+      callbacks?.onTrayControl(config.showTrayIcon);
+    }
+
+    return result;
+  });
+
+  ipcMain.handle('settings:getGeneral', () => getGeneralConfig());
 }

@@ -5,12 +5,26 @@ import type {
   AppSettings,
   DefaultModelRef,
   DifyKnowledgeConfig,
+  GeneralConfig,
   McpServerConfig,
   ProviderConfig,
   ProviderConfigInput,
   SelectionAction,
   SelectionToolbarConfig,
 } from '@shared/types';
+
+export const DEFAULT_GENERAL_CONFIG: GeneralConfig = {
+  language: 'zh-CN',
+  proxyMode: 'system',
+  spellCheck: false,
+  launchAtStartup: false,
+  minimizeToTrayOnStartup: false,
+  theme: 'system',
+  accentColor: '#d97757',
+  transparentWindow: false,
+  showTrayIcon: true,
+  minimizeToTrayOnClose: true,
+};
 import { defaultProviders } from './defaults';
 
 const FILE_NAME = 'settings.json';
@@ -207,6 +221,17 @@ export function upsertMcpServer(server: McpServerConfig): AppSettings {
   } else {
     current.mcpServers.push(server);
   }
+  save(current);
+  return current;
+}
+
+export function getGeneralConfig(): GeneralConfig {
+  return { ...DEFAULT_GENERAL_CONFIG, ...(load().general ?? {}) };
+}
+
+export function setGeneralConfig(config: GeneralConfig): AppSettings {
+  const current = load();
+  current.general = config;
   save(current);
   return current;
 }

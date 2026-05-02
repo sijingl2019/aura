@@ -193,6 +193,27 @@ export interface ToolbarAPI {
   close: () => Promise<void>;
 }
 
+export type AppLanguage = 'zh-CN' | 'en' | 'zh-TW';
+export type ProxyMode = 'system' | 'none' | 'manual';
+export type AppTheme = 'light' | 'dark' | 'system';
+
+export interface GeneralConfig {
+  language: AppLanguage;
+  proxyMode: ProxyMode;
+  proxyHost?: string;
+  proxyPort?: number;
+  spellCheck: boolean;
+  launchAtStartup: boolean;
+  minimizeToTrayOnStartup: boolean;
+  // Display
+  theme: AppTheme;
+  accentColor: string;
+  transparentWindow: boolean;
+  // Tray
+  showTrayIcon: boolean;
+  minimizeToTrayOnClose: boolean;
+}
+
 export type McpTransportType = 'builtin' | 'stdio' | 'sse';
 
 export interface McpServerConfig {
@@ -226,6 +247,7 @@ export interface AppSettings {
   difyKnowledge?: DifyKnowledgeConfig;
   selectionToolbar?: SelectionToolbarConfig;
   mcpServers?: McpServerConfig[];
+  general?: GeneralConfig;
 }
 
 export type ProviderConfigInput = Omit<ProviderConfig, 'builtin' | 'order'> &
@@ -242,6 +264,8 @@ export interface SettingsAPI {
   setSelectionToolbar: (params: SelectionToolbarConfig) => Promise<AppSettings>;
   upsertMcpServer: (server: McpServerConfig) => Promise<AppSettings>;
   deleteMcpServer: (params: { id: string }) => Promise<AppSettings>;
+  getGeneral: () => Promise<GeneralConfig>;
+  setGeneral: (config: GeneralConfig) => Promise<AppSettings>;
 }
 
 export interface WorkspaceFile {

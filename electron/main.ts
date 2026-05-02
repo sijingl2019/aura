@@ -16,7 +16,7 @@ import { McpClientManager } from './mcp/client';
 import { startBuiltinMcpServer } from './mcp/builtin-server';
 import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
 import { registerTools } from './tools/registry';
-import { getDifyKnowledge } from './config/store';
+import { getDifyKnowledge, getGeneralConfig } from './config/store';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -87,6 +87,7 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
 function createWindow() {
+  const generalCfg = getGeneralConfig();
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 780,
@@ -104,8 +105,12 @@ function createWindow() {
       sandbox: true,
       nodeIntegration: false,
       webSecurity: true,
+      spellcheck: generalCfg.spellCheck,
     },
   });
+  if (generalCfg.minimizeToTrayOnStartup) {
+    mainWindow.once('ready-to-show', () => mainWindow?.hide());
+  }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -125,6 +130,14 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(RENDERER_DIST, 'index.html'));
   }
+
+  mainWindow.on('close', (e) => {
+    const cfg = getGeneralConfig();
+    if (cfg.minimizeToTrayOnClose && cfg.showTrayIcon && tray && !tray.isDestroyed()) {
+      e.preventDefault();
+      mainWindow?.hide();
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -186,6 +199,19 @@ const mcpManager = new McpClientManager();
 app.whenReady().then(async () => {
   initDb();
 
+  // Apply saved general config at startup
+  const generalCfg = getGeneralConfig();
+  app.setLoginItemSettings({ openAtLogin: generalCfg.launchAtStartup });
+  if (generalCfg.proxyMode === 'none') {
+    const { session } = await import('electron');
+    await session.defaultSession.setProxy({ mode: 'direct' });
+  } else if (generalCfg.proxyMode === 'manual' && generalCfg.proxyHost) {
+    const { session } = await import('electron');
+    await session.defaultSession.setProxy({
+      proxyRules: `${generalCfg.proxyHost}:${generalCfg.proxyPort ?? 8080}`,
+    });
+  }
+
   const userSkillsDir = path.join(os.homedir(), '.qiko-aura', 'skills');
   const resourceSkillsDir = path.join(process.resourcesPath ?? app.getAppPath(), 'skills');
   if (!fs.existsSync(userSkillsDir)) fs.mkdirSync(userSkillsDir, { recursive: true });
@@ -236,13 +262,22 @@ app.whenReady().then(async () => {
   registerDbIpc();
   registerLlmIpc({ skills });
   registerSkillsIpc(skills);
-  registerSettingsIpc();
+  registerSettingsIpc({
+    onTrayControl: (show) => {
+      if (show) {
+        if (!tray) createTray();
+      } else {
+        tray?.destroy();
+        tray = null;
+      }
+    },
+  });
   registerWorkspaceIpc();
   registerPopupIpc();
   registerToolbarIpc();
 
   createWindow();
-  createTray();
+  if (generalCfg.showTrayIcon) createTray();
   if (process.platform === 'darwin' && app.dock) {
     try {
       app.dock.setIcon(nativeImage.createFromPath(APP_ICON_PATH));
