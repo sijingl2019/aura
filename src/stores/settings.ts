@@ -49,7 +49,7 @@ interface SettingsState {
 function apply(set: (partial: Partial<SettingsState>) => void, next: AppSettings) {
   const general = { ...DEFAULT_GENERAL, ...(next.general ?? {}) };
   useI18n.getState().setLang(general.language);
-  applyTheme(general.theme, general.accentColor);
+  applyTheme(general.theme, general.accentColor, general.transparentWindow);
   set({
     loaded: true,
     providers: [...next.providers].sort((a, b) => a.order - b.order),

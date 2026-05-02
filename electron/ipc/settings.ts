@@ -99,7 +99,13 @@ export function registerSettingsIpc(callbacks?: SettingsIpcCallbacks): void {
     }
 
     // Launch at startup
-    app.setLoginItemSettings({ openAtLogin: config.launchAtStartup });
+    if (app.isPackaged) {
+      try {
+        app.setLoginItemSettings({ openAtLogin: config.launchAtStartup });
+      } catch (e) {
+        console.warn(`[login-item] failed to set: ${(e as Error).message}`);
+      }
+    }
 
     // Tray visibility
     if (config.showTrayIcon !== prev.showTrayIcon) {

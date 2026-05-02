@@ -17,26 +17,17 @@ export function GeneralSection() {
   const t = useT();
 
   const [draft, setDraft] = useState<GeneralConfig>(general);
-  const [saving, setSaving] = useState(false);
   const [customColor, setCustomColor] = useState(general.accentColor);
 
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(general);
-
-  const update = (patch: Partial<GeneralConfig>) =>
-    setDraft((prev) => ({ ...prev, ...patch }));
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await setGeneral(draft);
-    } finally {
-      setSaving(false);
-    }
+  const persist = (patch: Partial<GeneralConfig>) => {
+    const next = { ...draft, ...patch };
+    setDraft(next);
+    void setGeneral(next);
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-6">
+    <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden bg-surface">
+      <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-6 min-h-0">
 
         {/* ── 常规设置 ──────────────────────────────────────── */}
         <Section title={t.general.sectionGeneral}>
@@ -46,7 +37,7 @@ export function GeneralSection() {
               value={draft.language}
               onChange={(e) => {
                 const lang = e.target.value as AppLanguage;
-                update({ language: lang });
+                persist({ language: lang });
                 useI18n.getState().setLang(lang);
               }}
               className="h-8 rounded-md border border-black/10 bg-surface px-2.5 text-sm text-ink focus:border-accent/40 focus:outline-none"
@@ -61,7 +52,7 @@ export function GeneralSection() {
             <select
               aria-label={t.general.proxyMode}
               value={draft.proxyMode}
-              onChange={(e) => update({ proxyMode: e.target.value as ProxyMode })}
+              onChange={(e) => persist({ proxyMode: e.target.value as ProxyMode })}
               className="h-8 max-w-[180px] rounded-md border border-black/10 bg-surface px-2.5 text-sm text-ink focus:border-accent/40 focus:outline-none"
             >
               <option value="system">{t.general.proxySystem}</option>
@@ -71,11 +62,12 @@ export function GeneralSection() {
           </Row>
 
           {draft.proxyMode === 'manual' && (
-            <div className="flex items-center gap-2 px-4 pb-3">
+            <div className="flex items-center gap-2 px-4 py-3">
               <input
                 type="text"
                 value={draft.proxyHost ?? ''}
-                onChange={(e) => update({ proxyHost: e.target.value })}
+                onChange={(e) => setDraft((prev) => ({ ...prev, proxyHost: e.target.value }))}
+                onBlur={() => persist({})}
                 placeholder={t.general.proxyHost}
                 className="h-8 flex-1 rounded-md border border-black/10 bg-surface px-2.5 text-xs text-ink placeholder:text-ink-subtle focus:border-accent/40 focus:outline-none"
               />
@@ -83,7 +75,8 @@ export function GeneralSection() {
               <input
                 type="number"
                 value={draft.proxyPort ?? ''}
-                onChange={(e) => update({ proxyPort: Number(e.target.value) || undefined })}
+                onChange={(e) => setDraft((prev) => ({ ...prev, proxyPort: Number(e.target.value) || undefined }))}
+                onBlur={() => persist({})}
                 placeholder={t.general.proxyPort}
                 className="h-8 w-20 rounded-md border border-black/10 bg-surface px-2.5 text-xs text-ink placeholder:text-ink-subtle focus:border-accent/40 focus:outline-none"
               />
@@ -92,7 +85,7 @@ export function GeneralSection() {
 
           <Row label={t.general.spellCheck}>
             <div className="flex items-center gap-2">
-              <Toggle checked={draft.spellCheck} onChange={(v) => update({ spellCheck: v })} accentColor={draft.accentColor} />
+              <Toggle checked={draft.spellCheck} onChange={(v) => persist({ spellCheck: v })} accentColor={draft.accentColor} />
               <span className="text-[11px] text-ink-subtle">{t.general.spellCheckNote}</span>
             </div>
           </Row>
@@ -110,7 +103,7 @@ export function GeneralSection() {
                   <button
                     key={v}
                     type="button"
-                    onClick={() => { update({ theme: v }); applyTheme(v, draft.accentColor); }}
+                    onClick={() => { persist({ theme: v }); applyTheme(v, draft.accentColor, draft.transparentWindow); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors ${
                       draft.theme === v
                         ? 'bg-accent text-white'
@@ -133,7 +126,7 @@ export function GeneralSection() {
                   key={color}
                   color={color}
                   active={draft.accentColor === color}
-                  onPick={() => { update({ accentColor: color }); setCustomColor(color); applyTheme(draft.theme, color); }}
+                  onPick={() => { persist({ accentColor: color }); setCustomColor(color); applyTheme(draft.theme, color, draft.transparentWindow); }}
                 />
               ))}
               {/* Custom hex + native color picker */}
@@ -147,8 +140,8 @@ export function GeneralSection() {
                   onChange={(e) => {
                     setCustomColor(e.target.value);
                     if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
-                      update({ accentColor: e.target.value });
-                      applyTheme(draft.theme, e.target.value);
+                      persist({ accentColor: e.target.value });
+                      applyTheme(draft.theme, e.target.value, draft.transparentWindow);
                     }
                   }}
                   className="w-16 bg-transparent py-1 text-xs text-ink focus:outline-none"
@@ -158,7 +151,7 @@ export function GeneralSection() {
                   <input
                     type="color"
                     value={customColor}
-                    onChange={(e) => { setCustomColor(e.target.value); update({ accentColor: e.target.value }); applyTheme(draft.theme, e.target.value); }}
+                    onChange={(e) => { setCustomColor(e.target.value); persist({ accentColor: e.target.value }); applyTheme(draft.theme, e.target.value, draft.transparentWindow); }}
                     className="sr-only"
                   />
                 </label>
@@ -169,7 +162,7 @@ export function GeneralSection() {
           {/* Transparent window */}
           <Row label={t.general.transparentWindow}>
             <div className="flex items-center gap-2">
-              <Toggle checked={draft.transparentWindow} onChange={(v) => update({ transparentWindow: v })} accentColor={draft.accentColor} />
+              <Toggle checked={draft.transparentWindow} onChange={(v) => { persist({ transparentWindow: v }); applyTheme(draft.theme, draft.accentColor, v); }} accentColor={draft.accentColor} />
               <span className="text-[11px] text-ink-subtle">{t.general.transparentWindowNote}</span>
             </div>
           </Row>
@@ -178,61 +171,25 @@ export function GeneralSection() {
         {/* ── 启动 ──────────────────────────────────────────── */}
         <Section title={t.general.sectionStartup}>
           <Row label={t.general.launchAtStartup}>
-            <Toggle checked={draft.launchAtStartup} onChange={(v) => update({ launchAtStartup: v })} accentColor={draft.accentColor} />
-          </Row>
-          <Row label={t.general.minimizeToTray}>
-            <Toggle checked={draft.minimizeToTrayOnStartup} onChange={(v) => update({ minimizeToTrayOnStartup: v })} accentColor={draft.accentColor} />
+            <Toggle checked={draft.launchAtStartup} onChange={(v) => persist({ launchAtStartup: v })} accentColor={draft.accentColor} />
           </Row>
         </Section>
 
         {/* ── 托盘 ──────────────────────────────────────────── */}
         <Section title={t.general.sectionTray}>
           <Row label={t.general.showTrayIcon}>
-            <Toggle checked={draft.showTrayIcon} onChange={(v) => update({ showTrayIcon: v })} accentColor={draft.accentColor} />
-          </Row>
-          <Row label={t.general.minimizeToTrayOnClose}>
-            <Toggle
-              checked={draft.minimizeToTrayOnClose}
-              onChange={(v) => update({ minimizeToTrayOnClose: v })}
-              disabled={!draft.showTrayIcon}
-              accentColor={draft.accentColor}
-            />
+            <Toggle checked={draft.showTrayIcon} onChange={(v) => persist({ showTrayIcon: v })} accentColor={draft.accentColor} />
           </Row>
         </Section>
       </div>
 
-      {/* ── Footer ───────────────────────────────────────────── */}
-      {isDirty && (
-        <div className="flex justify-end border-t border-black/5 px-6 py-3">
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(general);
-              setCustomColor(general.accentColor);
-              useI18n.getState().setLang(general.language);
-              applyTheme(general.theme, general.accentColor);
-            }}
-            className="mr-2 h-8 rounded-md border border-black/10 px-4 text-sm text-ink-muted hover:text-ink"
-          >
-            {t.common.cancel}
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="h-8 rounded-md bg-accent px-4 text-sm text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {t.common.save}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-black/5 bg-surface">
+    <div className="shrink-0 overflow-hidden rounded-xl border border-black/5 bg-surface">
       <div className="border-b border-black/5 px-4 py-3">
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
       </div>
@@ -275,8 +232,8 @@ function Toggle({
       }`}
     >
       <span
-        className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
-          checked ? 'translate-x-[19px]' : 'translate-x-[3px]'
+        className={`absolute left-[3px] top-[3px] h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
+          checked ? 'translate-x-[18px]' : 'translate-x-0'
         }`}
       />
     </button>

@@ -23,7 +23,7 @@ function AppShell() {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-surface text-ink">
+    <div className="flex h-screen w-screen flex-col text-ink">
       <TitleBar onToggleSidebar={() => setSidebarOpen((v) => !v)} />
       <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && <Sidebar onSelect={(id) => navigate(`/c/${id}`)} />}

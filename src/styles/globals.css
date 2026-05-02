@@ -46,4 +46,8 @@
     background: rgb(var(--color-surface));
     -webkit-font-smoothing: antialiased;
   }
+
+  html.is-transparent body {
+    background: transparent;
+  }
 }

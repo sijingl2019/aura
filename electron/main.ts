@@ -85,6 +85,7 @@ Menu.setApplicationMenu(
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let isQuitting = false;
 
 function createWindow() {
   const generalCfg = getGeneralConfig();
@@ -132,6 +133,7 @@ function createWindow() {
   }
 
   mainWindow.on('close', (e) => {
+    if (isQuitting) return;
     const cfg = getGeneralConfig();
     if (cfg.minimizeToTrayOnClose && cfg.showTrayIcon && tray && !tray.isDestroyed()) {
       e.preventDefault();
@@ -201,7 +203,13 @@ app.whenReady().then(async () => {
 
   // Apply saved general config at startup
   const generalCfg = getGeneralConfig();
-  app.setLoginItemSettings({ openAtLogin: generalCfg.launchAtStartup });
+  if (app.isPackaged) {
+    try {
+      app.setLoginItemSettings({ openAtLogin: generalCfg.launchAtStartup });
+    } catch (e) {
+      console.warn(`[login-item] failed to set: ${(e as Error).message}`);
+    }
+  }
   if (generalCfg.proxyMode === 'none') {
     const { session } = await import('electron');
     await session.defaultSession.setProxy({ mode: 'direct' });
@@ -287,6 +295,10 @@ app.whenReady().then(async () => {
   }
   initSelectionIpc();
   syncSelectionConfig();
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
 });
 
 app.on('will-quit', () => {

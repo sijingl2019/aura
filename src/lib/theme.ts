@@ -16,8 +16,9 @@ function setDark(dark: boolean) {
   document.documentElement.classList.toggle('dark', dark);
 }
 
-export function applyTheme(theme: AppTheme, accentColor: string) {
+export function applyTheme(theme: AppTheme, accentColor: string, transparentWindow: boolean) {
   document.documentElement.style.setProperty('--color-accent', hexToRgbChannels(accentColor));
+  document.documentElement.classList.toggle('is-transparent', transparentWindow);
 
   if (_mq && _listener) {
     _mq.removeEventListener('change', _listener);
