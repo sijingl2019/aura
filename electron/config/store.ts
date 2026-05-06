@@ -1,6 +1,3 @@
-import { app } from 'electron';
-import fs from 'node:fs';
-import path from 'node:path';
 import type {
   AppSettings,
   DefaultModelRef,
@@ -13,6 +10,11 @@ import type {
   SelectionToolbarConfig,
   ShortcutDef,
 } from '@shared/types';
+import { app } from 'electron';
+import fs from 'node:fs';
+import path from 'node:path';
+import { defaultProviders } from './defaults';
+import { DEFAULT_SHORTCUTS } from './hardcoded';
 
 export const DEFAULT_GENERAL_CONFIG: GeneralConfig = {
   language: 'zh-CN',
@@ -26,8 +28,6 @@ export const DEFAULT_GENERAL_CONFIG: GeneralConfig = {
   showTrayIcon: true,
   minimizeToTrayOnClose: true,
 };
-import { defaultProviders } from './defaults';
-import { DEFAULT_SHORTCUTS } from './hardcoded';
 
 const FILE_NAME = 'settings.json';
 
@@ -247,6 +247,8 @@ export function deleteMcpServer(id: string): AppSettings {
   current.mcpServers = current.mcpServers.filter((s) => s.id !== id);
   save(current);
   return current;
+}
+
 export function getShortcuts(): ShortcutDef[] {
   const overrides = load().shortcutsOverrides ?? {};
   return DEFAULT_SHORTCUTS.map((s) => ({

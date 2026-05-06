@@ -1,25 +1,33 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, shell, Tray } from 'electron';
-import path from 'node:path';
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  ipcMain,
+  Menu,
+  nativeImage,
+  shell,
+  Tray,
+} from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
+import { getDifyKnowledge, getGeneralConfig, getShortcuts } from './config/store';
 import { initDb } from './db/index';
 import { registerDbIpc } from './ipc/db';
 import { registerLlmIpc } from './ipc/llm';
-import { registerSkillsIpc } from './ipc/skills';
-import { registerSettingsIpc } from './ipc/settings';
-import { registerWorkspaceIpc } from './ipc/workspace';
 import { registerPopupIpc } from './ipc/popupIpc';
-import { registerToolbarIpc } from './ipc/toolbarIpc';
 import { registerQuickQuestionIpc } from './ipc/quickQuestionIpc';
 import { initSelectionIpc, syncSelectionConfig, teardownSelectionIpc } from './ipc/selectionIpc';
-import { SkillStore } from './skills/loader';
-import { McpClientManager } from './mcp/client';
+import { registerSettingsIpc } from './ipc/settings';
+import { registerSkillsIpc } from './ipc/skills';
+import { registerToolbarIpc } from './ipc/toolbarIpc';
+import { registerWorkspaceIpc } from './ipc/workspace';
 import { startBuiltinMcpServer } from './mcp/builtin-server';
+import { McpClientManager } from './mcp/client';
 import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
+import { SkillStore } from './skills/loader';
 import { registerTools } from './tools/registry';
-import { getDifyKnowledge, getShortcuts } from './config/store';
 import { toggleQuickQuestionWindow } from './windows/quickQuestionWindow';
-import { getDifyKnowledge, getGeneralConfig } from './config/store';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -197,7 +205,7 @@ function updateGlobalShortcuts(): void {
     if (!ok || !verified) {
       console.warn(
         `[shortcut] global shortcut "${s.keys}" registration failed (register=${ok}, isRegistered=${verified}). ` +
-        `On Windows this often means the OS or input method (IME) has reserved it — try a different combination in Settings → 快捷键.`,
+          `On Windows this often means the OS or input method (IME) has reserved it — try a different combination in Settings → 快捷键.`,
       );
     } else {
       console.log(`[shortcut] global shortcut "${s.keys}" registered (id=${s.id})`);
@@ -263,7 +271,9 @@ app.whenReady().then(async () => {
 
   const mcpSetups: Array<{
     id: string;
-    start: () => Promise<{ clientTransport: Awaited<ReturnType<typeof startBuiltinMcpServer>>['clientTransport'] }>;
+    start: () => Promise<{
+      clientTransport: Awaited<ReturnType<typeof startBuiltinMcpServer>>['clientTransport'];
+    }>;
   }> = [
     { id: 'builtin', start: startBuiltinMcpServer },
     { id: 'dify-knowledge', start: () => startDifyKnowledgeMcpServer(getDifyKnowledge) },
@@ -299,7 +309,7 @@ app.whenReady().then(async () => {
         tray?.destroy();
         tray = null;
       }
-      updateGlobalShortcuts
+      updateGlobalShortcuts;
     },
   });
   registerWorkspaceIpc();

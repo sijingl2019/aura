@@ -1,8 +1,16 @@
+import type {
+  DefaultModelRef,
+  DifyKnowledge,
+  DifyKnowledgeConfig,
+  GeneralConfig,
+  McpServerConfig,
+  ProviderConfigInput,
+  SelectionToolbarConfig,
+} from '@shared/types';
 import { ipcMain } from 'electron';
-import type { DefaultModelRef, DifyKnowledge, DifyKnowledgeConfig, GeneralConfig, McpServerConfig, ProviderConfigInput, SelectionToolbarConfig } from '@shared/types';
 import {
-  deleteProvider,
   deleteMcpServer,
+  deleteProvider,
   getDifyKnowledge,
   getGeneralConfig,
   getSettings,
@@ -23,10 +31,7 @@ export interface SettingsIpcCallbacks {
   onTrayControl: (show: boolean) => void;
 }
 
-export function registerSettingsIpc(
-  onShortcutsChanged?: () => void
-  callbacks?: SettingsIpcCallbacks
-): void {
+export function registerSettingsIpc(onShortcutsChanged?: () => void): void {
   ipcMain.handle('settings:get', () => getSettings());
 
   ipcMain.handle('settings:upsertProvider', (_e, provider: ProviderConfigInput) =>

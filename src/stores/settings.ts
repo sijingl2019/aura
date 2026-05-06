@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import { useI18n } from '@/i18n';
+import { applyTheme } from '@/lib/theme';
 import type {
   AppSettings,
   DefaultModelRef,
@@ -10,8 +11,7 @@ import type {
   SelectionToolbarConfig,
   ShortcutDef,
 } from '@shared/types';
-import { useI18n } from '@/i18n';
-import { applyTheme } from '@/lib/theme';
+import { create } from 'zustand';
 
 const DEFAULT_GENERAL: GeneralConfig = {
   language: 'zh-CN',
@@ -124,6 +124,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   resetShortcut: async (id) => {
     const shortcuts = await window.api.shortcuts.reset({ id });
     set({ shortcuts });
+  },
+
   upsertMcpServer: async (server) => {
     const data = await window.api.settings.upsertMcpServer(server);
     apply(set, data);
