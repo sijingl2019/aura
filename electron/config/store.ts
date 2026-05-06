@@ -5,12 +5,27 @@ import type {
   AppSettings,
   DefaultModelRef,
   DifyKnowledgeConfig,
+  GeneralConfig,
+  McpServerConfig,
   ProviderConfig,
   ProviderConfigInput,
   SelectionAction,
   SelectionToolbarConfig,
   ShortcutDef,
 } from '@shared/types';
+
+export const DEFAULT_GENERAL_CONFIG: GeneralConfig = {
+  language: 'zh-CN',
+  proxyMode: 'system',
+  spellCheck: false,
+  launchAtStartup: false,
+  minimizeToTrayOnStartup: false,
+  theme: 'system',
+  accentColor: '#d97757',
+  transparentWindow: false,
+  showTrayIcon: true,
+  minimizeToTrayOnClose: true,
+};
 import { defaultProviders } from './defaults';
 import { DEFAULT_SHORTCUTS } from './hardcoded';
 
@@ -200,6 +215,38 @@ export function setSelectionToolbar(config: SelectionToolbarConfig): AppSettings
   return current;
 }
 
+export function upsertMcpServer(server: McpServerConfig): AppSettings {
+  const current = load();
+  if (!current.mcpServers) current.mcpServers = [];
+  const idx = current.mcpServers.findIndex((s) => s.id === server.id);
+  if (idx >= 0) {
+    current.mcpServers[idx] = server;
+  } else {
+    current.mcpServers.push(server);
+  }
+  save(current);
+  return current;
+}
+
+export function getGeneralConfig(): GeneralConfig {
+  return { ...DEFAULT_GENERAL_CONFIG, ...(load().general ?? {}) };
+}
+
+export function setGeneralConfig(config: GeneralConfig): AppSettings {
+  const current = load();
+  current.general = config;
+  save(current);
+  return current;
+}
+
+export function deleteMcpServer(id: string): AppSettings {
+  const current = load();
+  if (!current.mcpServers) return current;
+  const target = current.mcpServers.find((s) => s.id === id);
+  if (!target || target.builtin) return current;
+  current.mcpServers = current.mcpServers.filter((s) => s.id !== id);
+  save(current);
+  return current;
 export function getShortcuts(): ShortcutDef[] {
   const overrides = load().shortcutsOverrides ?? {};
   return DEFAULT_SHORTCUTS.map((s) => ({

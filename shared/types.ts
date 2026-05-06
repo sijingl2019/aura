@@ -17,6 +17,7 @@ export interface ChatMessage {
   model?: string;
   inputTokens?: number;
   outputTokens?: number;
+  skillName?: string;
 }
 
 export interface Conversation {
@@ -98,6 +99,7 @@ export interface LlmStreamParams {
   conversationId: string;
   userText: string;
   skillId?: string;
+  skillName?: string;
 }
 
 export interface LlmAPI {
@@ -115,6 +117,10 @@ export interface SkillListItem {
 export interface SkillsAPI {
   list: () => Promise<SkillListItem[]>;
   get: (params: { id: string }) => Promise<Skill | null>;
+  create: (params: { name: string; description: string; body: string }) => Promise<Skill>;
+  update: (params: { id: string; name: string; description: string; body: string }) => Promise<Skill>;
+  delete: (params: { id: string }) => Promise<void>;
+  onUpdated: (cb: () => void) => () => void;
 }
 
 export type ProviderKind = 'openai' | 'anthropic';
@@ -214,12 +220,62 @@ export interface ToolbarAPI {
   close: () => Promise<void>;
 }
 
+export type AppLanguage = 'zh-CN' | 'en' | 'zh-TW';
+export type ProxyMode = 'system' | 'none' | 'manual';
+export type AppTheme = 'light' | 'dark' | 'system';
+
+export interface GeneralConfig {
+  language: AppLanguage;
+  proxyMode: ProxyMode;
+  proxyHost?: string;
+  proxyPort?: number;
+  spellCheck: boolean;
+  launchAtStartup: boolean;
+  minimizeToTrayOnStartup: boolean;
+  // Display
+  theme: AppTheme;
+  accentColor: string;
+  transparentWindow: boolean;
+  // Tray
+  showTrayIcon: boolean;
+  minimizeToTrayOnClose: boolean;
+}
+
+export type McpTransportType = 'builtin' | 'stdio' | 'sse';
+
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  builtin?: boolean;
+  type: McpTransportType;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+}
+
+export interface McpMarketItem {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  type: 'stdio' | 'sse';
+  command?: string;
+  args?: string[];
+  url?: string;
+  homepage?: string;
+}
+
 export interface AppSettings {
   providers: ProviderConfig[];
   defaultModel?: DefaultModelRef;
   difyKnowledge?: DifyKnowledgeConfig;
   selectionToolbar?: SelectionToolbarConfig;
   shortcutsOverrides?: Record<string, string>;
+  mcpServers?: McpServerConfig[];
+  general?: GeneralConfig;
 }
 
 export type ProviderConfigInput = Omit<ProviderConfig, 'builtin' | 'order'> &
@@ -234,6 +290,24 @@ export interface SettingsAPI {
   setDifyKnowledge: (params: DifyKnowledgeConfig | null) => Promise<AppSettings>;
   listDifyKnowledges: () => Promise<DifyKnowledge[]>;
   setSelectionToolbar: (params: SelectionToolbarConfig) => Promise<AppSettings>;
+  upsertMcpServer: (server: McpServerConfig) => Promise<AppSettings>;
+  deleteMcpServer: (params: { id: string }) => Promise<AppSettings>;
+  getGeneral: () => Promise<GeneralConfig>;
+  setGeneral: (config: GeneralConfig) => Promise<AppSettings>;
+}
+
+export interface WorkspaceFile {
+  name: string;
+  path: string; // relative to cwd
+  isDir: boolean;
+}
+
+export interface WorkspaceAPI {
+  getCwd: () => Promise<string>;
+  setCwd: (cwd: string) => Promise<string>;
+  openFolderDialog: () => Promise<string | null>;
+  listFiles: (params: { dir?: string; query?: string }) => Promise<WorkspaceFile[]>;
+  onCwdChanged: (cb: (cwd: string) => void) => () => void;
 }
 
 export interface ShortcutsAPI {
@@ -268,6 +342,7 @@ export interface ElectronAPI {
   toolbar: ToolbarAPI;
   quickQuestion: QuickQuestionAPI;
   shortcuts: ShortcutsAPI;
+  workspace: WorkspaceAPI;
 }
 
 declare global {

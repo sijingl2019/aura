@@ -7,25 +7,30 @@ interface MessageBubbleProps {
   message: ChatMessage;
   streamingToolCalls?: StreamingToolCall[];
   isStreaming?: boolean;
+  toolResultsMap?: Map<string, string>;
 }
 
-export function MessageBubble({ message, streamingToolCalls, isStreaming }: MessageBubbleProps) {
+export function MessageBubble({ message, streamingToolCalls, isStreaming, toolResultsMap }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-2xl bg-surface-muted px-4 py-2 text-sm text-ink whitespace-pre-wrap">
-          {message.content}
+        <div className="max-w-[80%] rounded-2xl bg-surface-muted px-4 py-2 text-sm text-ink">
+          {message.skillName && (
+            <div className="mb-1.5">
+              <span className="inline-flex items-center gap-1 rounded-md bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent">
+                <span className="opacity-60">/</span>
+                {message.skillName}
+              </span>
+            </div>
+          )}
+          <span className="whitespace-pre-wrap">{message.content}</span>
         </div>
       </div>
     );
   }
 
   if (message.role === 'tool') {
-    return (
-      <div className="flex justify-start">
-        <ToolResultCard content={message.content} ok />
-      </div>
-    );
+    return null; // tool results are shown inline inside ToolCallCard
   }
 
   if (message.role === 'assistant') {
@@ -42,7 +47,7 @@ export function MessageBubble({ message, streamingToolCalls, isStreaming }: Mess
           {toolCalls && toolCalls.length > 0 && (
             <div className="flex flex-col gap-1">
               {toolCalls.map((tc) => (
-                <ToolCallCard key={tc.id} call={tc} />
+                <ToolCallCard key={tc.id} call={tc} storedResult={toolResultsMap?.get(tc.id)} />
               ))}
             </div>
           )}
@@ -59,22 +64,66 @@ export function MessageBubble({ message, streamingToolCalls, isStreaming }: Mess
   return null;
 }
 
-function ToolCallCard({ call }: { call: ToolCall | StreamingToolCall }) {
+type ToolKind = 'skill' | 'mcp' | 'builtin';
+
+const BUILTIN_TOOLS = new Set(['read_file', 'write_file', 'list_dir', 'exec_shell', 'web_fetch']);
+
+function getToolKind(name: string): ToolKind {
+  if (name.startsWith('mcp__')) return 'mcp';
+  if (BUILTIN_TOOLS.has(name)) return 'builtin';
+  return 'builtin';
+}
+
+const TOOL_KIND_STYLES: Record<ToolKind, { badge: string; border: string; icon: string; label: string }> = {
+  builtin: {
+    badge: 'bg-blue-50 text-blue-600',
+    border: 'border-blue-100',
+    icon: '🔧',
+    label: 'Tool',
+  },
+  mcp: {
+    badge: 'bg-purple-50 text-purple-600',
+    border: 'border-purple-100',
+    icon: '🔌',
+    label: 'MCP',
+  },
+  skill: {
+    badge: 'bg-accent/10 text-accent',
+    border: 'border-accent/20',
+    icon: '/',
+    label: 'Skill',
+  },
+};
+
+function ToolCallCard({ call, storedResult }: { call: ToolCall | StreamingToolCall; storedResult?: string }) {
   const [open, setOpen] = useState(false);
   const streaming = call as StreamingToolCall;
-  const result = streaming.result;
+  // During streaming: use live result; after streaming: fall back to stored DB result
+  const result: { ok: boolean; preview: string } | undefined =
+    streaming.result ?? (storedResult !== undefined ? { ok: true, preview: storedResult.slice(0, 200) } : undefined);
   const argsPreview = call.arguments.length > 80 ? call.arguments.slice(0, 80) + '…' : call.arguments;
 
+  const kind = getToolKind(call.name);
+  const styles = TOOL_KIND_STYLES[kind];
+
+  // For MCP tools, strip the mcp__serverId__ prefix for display
+  const displayName = kind === 'mcp'
+    ? call.name.replace(/^mcp__[^_]+__/, '')
+    : call.name;
+
   return (
-    <div className="rounded-xl border border-black/5 bg-surface-muted/60 px-3 py-2 text-xs">
+    <div className={`rounded-xl border bg-surface-muted/60 px-3 py-2 text-xs ${styles.border}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="flex items-center gap-2">
-          <span>🔧</span>
-          <span className="font-medium">{call.name}</span>
+          <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-medium ${styles.badge}`}>
+            <span>{styles.icon}</span>
+            <span>{styles.label}</span>
+          </span>
+          <span className="font-medium text-ink">{displayName}</span>
           <span className="text-ink-subtle">{argsPreview}</span>
         </span>
         <span className="text-ink-subtle">
@@ -86,36 +135,12 @@ function ToolCallCard({ call }: { call: ToolCall | StreamingToolCall }) {
           <pre className="overflow-x-auto rounded bg-surface-sunken p-2 text-[11px] text-ink">
             {call.arguments || '{}'}
           </pre>
-          {result && (
+          {(result || storedResult) && (
             <pre className="overflow-x-auto rounded bg-surface-sunken p-2 text-[11px] text-ink">
-              {result.preview}
+              {storedResult ?? result?.preview}
             </pre>
           )}
         </div>
-      )}
-    </div>
-  );
-}
-
-function ToolResultCard({ content, ok }: { content: string; ok: boolean }) {
-  const [open, setOpen] = useState(false);
-  const preview = content.length > 120 ? content.slice(0, 120) + '…' : content;
-  return (
-    <div className="max-w-[85%] rounded-xl border border-black/5 bg-surface-muted/40 px-3 py-2 text-xs">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 text-left"
-      >
-        <span className="flex items-center gap-2">
-          <span>{ok ? '✓' : '✗'}</span>
-          <span className="text-ink-subtle">{preview}</span>
-        </span>
-      </button>
-      {open && (
-        <pre className="mt-2 overflow-x-auto rounded bg-surface-sunken p-2 text-[11px] text-ink">
-          {content}
-        </pre>
       )}
     </div>
   );

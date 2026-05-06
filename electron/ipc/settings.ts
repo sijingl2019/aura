@@ -1,21 +1,32 @@
 import { ipcMain } from 'electron';
-import type { DefaultModelRef, DifyKnowledge, DifyKnowledgeConfig, ProviderConfigInput, SelectionToolbarConfig } from '@shared/types';
+import type { DefaultModelRef, DifyKnowledge, DifyKnowledgeConfig, GeneralConfig, McpServerConfig, ProviderConfigInput, SelectionToolbarConfig } from '@shared/types';
 import {
   deleteProvider,
+  deleteMcpServer,
   getDifyKnowledge,
+  getGeneralConfig,
   getSettings,
   getShortcuts,
   reorderProviders,
   resetShortcut,
   setDefaultModel,
   setDifyKnowledge,
+  setGeneralConfig,
   setSelectionToolbar,
   setShortcutOverride,
+  upsertMcpServer,
   upsertProvider,
 } from '../config/store';
 import { syncSelectionConfig } from './selectionIpc';
 
-export function registerSettingsIpc(onShortcutsChanged?: () => void): void {
+export interface SettingsIpcCallbacks {
+  onTrayControl: (show: boolean) => void;
+}
+
+export function registerSettingsIpc(
+  onShortcutsChanged?: () => void
+  callbacks?: SettingsIpcCallbacks
+): void {
   ipcMain.handle('settings:get', () => getSettings());
 
   ipcMain.handle('settings:upsertProvider', (_e, provider: ProviderConfigInput) =>
@@ -68,6 +79,49 @@ export function registerSettingsIpc(onShortcutsChanged?: () => void): void {
     return result;
   });
 
+  ipcMain.handle('settings:upsertMcpServer', (_e, server: McpServerConfig) =>
+    upsertMcpServer(server),
+  );
+
+  ipcMain.handle('settings:deleteMcpServer', (_e, params: { id: string }) =>
+    deleteMcpServer(params.id),
+  );
+
+  ipcMain.handle('settings:setGeneral', async (_e, config: GeneralConfig) => {
+    const prev = getGeneralConfig();
+    const result = setGeneralConfig(config);
+
+    const { session, app } = await import('electron');
+
+    // Proxy
+    if (config.proxyMode === 'system') {
+      await session.defaultSession.setProxy({ mode: 'system' });
+    } else if (config.proxyMode === 'none') {
+      await session.defaultSession.setProxy({ mode: 'direct' });
+    } else if (config.proxyMode === 'manual' && config.proxyHost) {
+      await session.defaultSession.setProxy({
+        proxyRules: `${config.proxyHost}:${config.proxyPort ?? 8080}`,
+      });
+    }
+
+    // Launch at startup
+    if (app.isPackaged) {
+      try {
+        app.setLoginItemSettings({ openAtLogin: config.launchAtStartup });
+      } catch (e) {
+        console.warn(`[login-item] failed to set: ${(e as Error).message}`);
+      }
+    }
+
+    // Tray visibility
+    if (config.showTrayIcon !== prev.showTrayIcon) {
+      callbacks?.onTrayControl(config.showTrayIcon);
+    }
+
+    return result;
+  });
+
+  ipcMain.handle('settings:getGeneral', () => getGeneralConfig());
   ipcMain.handle('shortcuts:get', () => getShortcuts());
 
   ipcMain.handle('shortcuts:set', (_e, params: { id: string; keys: string }) => {

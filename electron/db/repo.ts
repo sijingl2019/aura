@@ -23,6 +23,7 @@ interface MessageRow {
   model: string | null;
   input_tokens: number | null;
   output_tokens: number | null;
+  skill_name: string | null;
 }
 
 function mapConversation(row: ConversationRow): Conversation {
@@ -48,6 +49,7 @@ function mapMessage(row: MessageRow): ChatMessage {
     model: row.model ?? undefined,
     inputTokens: row.input_tokens ?? undefined,
     outputTokens: row.output_tokens ?? undefined,
+    skillName: row.skill_name ?? undefined,
   };
 }
 
@@ -134,6 +136,7 @@ export interface AppendMessageInput {
   model?: string;
   inputTokens?: number;
   outputTokens?: number;
+  skillName?: string;
 }
 
 export function searchConversations(query: string, limit = 20): ConversationSearchResult[] {
@@ -206,11 +209,12 @@ export function appendMessage(input: AppendMessageInput): ChatMessage {
     model: input.model,
     inputTokens: input.inputTokens,
     outputTokens: input.outputTokens,
+    skillName: input.skillName,
   };
   getDb()
     .prepare(
-      `INSERT INTO messages (id, conversation_id, role, content, tool_calls, tool_call_id, created_at, model, input_tokens, output_tokens)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO messages (id, conversation_id, role, content, tool_calls, tool_call_id, created_at, model, input_tokens, output_tokens, skill_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       msg.id,
@@ -223,6 +227,7 @@ export function appendMessage(input: AppendMessageInput): ChatMessage {
       msg.model ?? null,
       msg.inputTokens ?? null,
       msg.outputTokens ?? null,
+      msg.skillName ?? null,
     );
   touchConversation(msg.conversationId);
   return msg;

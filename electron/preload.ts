@@ -7,7 +7,9 @@ import type {
   DefaultModelRef,
   DifyKnowledge,
   DifyKnowledgeConfig,
+  GeneralConfig,
   LlmStreamParams,
+  McpServerConfig,
   PopupParams,
   PopupStreamEvent,
   ProviderConfigInput,
@@ -18,6 +20,7 @@ import type {
   SkillListItem,
   StreamEvent,
   ToolbarParams,
+  WorkspaceFile,
 } from '@shared/types';
 
 const api = {
@@ -68,6 +71,17 @@ const api = {
     list: () => ipcRenderer.invoke('skills:list') as Promise<SkillListItem[]>,
     get: (params: { id: string }) =>
       ipcRenderer.invoke('skills:get', params) as Promise<Skill | null>,
+    create: (params: { name: string; description: string; body: string }) =>
+      ipcRenderer.invoke('skills:create', params) as Promise<Skill>,
+    update: (params: { id: string; name: string; description: string; body: string }) =>
+      ipcRenderer.invoke('skills:update', params) as Promise<Skill>,
+    delete: (params: { id: string }) =>
+      ipcRenderer.invoke('skills:delete', params) as Promise<void>,
+    onUpdated: (cb: () => void) => {
+      const listener = () => cb();
+      ipcRenderer.on('skills:updated', listener);
+      return () => ipcRenderer.off('skills:updated', listener);
+    },
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get') as Promise<AppSettings>,
@@ -85,6 +99,14 @@ const api = {
       ipcRenderer.invoke('settings:listDifyKnowledges') as Promise<DifyKnowledge[]>,
     setSelectionToolbar: (params: SelectionToolbarConfig) =>
       ipcRenderer.invoke('settings:setSelectionToolbar', params) as Promise<AppSettings>,
+    upsertMcpServer: (server: McpServerConfig) =>
+      ipcRenderer.invoke('settings:upsertMcpServer', server) as Promise<AppSettings>,
+    deleteMcpServer: (params: { id: string }) =>
+      ipcRenderer.invoke('settings:deleteMcpServer', params) as Promise<AppSettings>,
+    setGeneral: (config: GeneralConfig) =>
+      ipcRenderer.invoke('settings:setGeneral', config) as Promise<AppSettings>,
+    getGeneral: () =>
+      ipcRenderer.invoke('settings:getGeneral') as Promise<GeneralConfig>,
   },
   popup: {
     open: (params: { action: string; text: string; screenX: number; screenY: number }) =>
@@ -113,6 +135,18 @@ const api = {
     resize: (params: { width: number; height: number }) =>
       ipcRenderer.invoke('toolbar:resize', params) as Promise<void>,
     close: () => ipcRenderer.invoke('toolbar:close') as Promise<void>,
+  },
+  workspace: {
+    getCwd: () => ipcRenderer.invoke('workspace:getCwd') as Promise<string>,
+    setCwd: (cwd: string) => ipcRenderer.invoke('workspace:setCwd', cwd) as Promise<string>,
+    openFolderDialog: () => ipcRenderer.invoke('workspace:openFolderDialog') as Promise<string | null>,
+    listFiles: (params: { dir?: string; query?: string }) =>
+      ipcRenderer.invoke('workspace:listFiles', params) as Promise<WorkspaceFile[]>,
+    onCwdChanged: (cb: (cwd: string) => void) => {
+      const listener = (_: unknown, cwd: string) => cb(cwd);
+      ipcRenderer.on('workspace:cwdChanged', listener);
+      return () => ipcRenderer.off('workspace:cwdChanged', listener);
+    },
   },
   quickQuestion: {
     close: () => ipcRenderer.invoke('quickQuestion:close') as Promise<void>,

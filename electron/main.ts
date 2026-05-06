@@ -1,11 +1,13 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, shell, Tray } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { initDb } from './db/index';
 import { registerDbIpc } from './ipc/db';
 import { registerLlmIpc } from './ipc/llm';
 import { registerSkillsIpc } from './ipc/skills';
 import { registerSettingsIpc } from './ipc/settings';
+import { registerWorkspaceIpc } from './ipc/workspace';
 import { registerPopupIpc } from './ipc/popupIpc';
 import { registerToolbarIpc } from './ipc/toolbarIpc';
 import { registerQuickQuestionIpc } from './ipc/quickQuestionIpc';
@@ -17,6 +19,7 @@ import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
 import { registerTools } from './tools/registry';
 import { getDifyKnowledge, getShortcuts } from './config/store';
 import { toggleQuickQuestionWindow } from './windows/quickQuestionWindow';
+import { getDifyKnowledge, getGeneralConfig } from './config/store';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -85,8 +88,10 @@ Menu.setApplicationMenu(
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let isQuitting = false;
 
 function createWindow() {
+  const generalCfg = getGeneralConfig();
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 780,
@@ -104,8 +109,12 @@ function createWindow() {
       sandbox: true,
       nodeIntegration: false,
       webSecurity: true,
+      spellcheck: generalCfg.spellCheck,
     },
   });
+  if (generalCfg.minimizeToTrayOnStartup) {
+    mainWindow.once('ready-to-show', () => mainWindow?.hide());
+  }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -125,6 +134,15 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(RENDERER_DIST, 'index.html'));
   }
+
+  mainWindow.on('close', (e) => {
+    if (isQuitting) return;
+    const cfg = getGeneralConfig();
+    if (cfg.minimizeToTrayOnClose && cfg.showTrayIcon && tray && !tray.isDestroyed()) {
+      e.preventDefault();
+      mainWindow?.hide();
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -204,12 +222,44 @@ const mcpManager = new McpClientManager();
 app.whenReady().then(async () => {
   initDb();
 
-  const userSkillsDir = path.join(app.getPath('userData'), 'skills');
+  // Apply saved general config at startup
+  const generalCfg = getGeneralConfig();
+  if (app.isPackaged) {
+    try {
+      app.setLoginItemSettings({ openAtLogin: generalCfg.launchAtStartup });
+    } catch (e) {
+      console.warn(`[login-item] failed to set: ${(e as Error).message}`);
+    }
+  }
+  if (generalCfg.proxyMode === 'none') {
+    const { session } = await import('electron');
+    await session.defaultSession.setProxy({ mode: 'direct' });
+  } else if (generalCfg.proxyMode === 'manual' && generalCfg.proxyHost) {
+    const { session } = await import('electron');
+    await session.defaultSession.setProxy({
+      proxyRules: `${generalCfg.proxyHost}:${generalCfg.proxyPort ?? 8080}`,
+    });
+  }
+
+  const userSkillsDir = path.join(os.homedir(), '.qiko-aura', 'skills');
   const resourceSkillsDir = path.join(process.resourcesPath ?? app.getAppPath(), 'skills');
   if (!fs.existsSync(userSkillsDir)) fs.mkdirSync(userSkillsDir, { recursive: true });
 
   const skills = new SkillStore([userSkillsDir, resourceSkillsDir]);
   await skills.reload();
+
+  // Watch for file system changes in userSkillsDir and auto-reload
+  let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+  fs.watch(userSkillsDir, { recursive: true }, () => {
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(async () => {
+      await skills.reload();
+      // Notify all renderer windows to refresh the skill list
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('skills:updated');
+      }
+    }, 300);
+  });
 
   const mcpSetups: Array<{
     id: string;
@@ -238,12 +288,21 @@ app.whenReady().then(async () => {
     console.warn(`[mcp] failed to list tools: ${(e as Error).message}`);
   }
 
-  const cwd = process.cwd();
-
   registerDbIpc();
-  registerLlmIpc({ skills, cwd });
+  registerLlmIpc({ skills });
   registerSkillsIpc(skills);
-  registerSettingsIpc(updateGlobalShortcuts);
+  registerSettingsIpc({
+    onTrayControl: (show) => {
+      if (show) {
+        if (!tray) createTray();
+      } else {
+        tray?.destroy();
+        tray = null;
+      }
+      updateGlobalShortcuts
+    },
+  });
+  registerWorkspaceIpc();
   registerPopupIpc();
   registerToolbarIpc();
   registerQuickQuestionIpc();
@@ -260,6 +319,10 @@ app.whenReady().then(async () => {
   }
   initSelectionIpc();
   syncSelectionConfig();
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
 });
 
 app.on('will-quit', () => {

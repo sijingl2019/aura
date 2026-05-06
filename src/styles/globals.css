@@ -11,6 +11,27 @@
   }
 }
 
+/* ── Color tokens (light) ──────────────────────────────────────────────────── */
+:root {
+  --color-surface: 255 255 255;
+  --color-surface-muted: 250 249 247;
+  --color-surface-sunken: 243 242 239;
+  --color-ink: 26 26 26;
+  --color-ink-muted: 107 107 107;
+  --color-ink-subtle: 154 154 154;
+  --color-accent: 217 119 87;
+}
+
+/* ── Color tokens (dark) ───────────────────────────────────────────────────── */
+.dark {
+  --color-surface: 28 28 30;
+  --color-surface-muted: 18 18 20;
+  --color-surface-sunken: 44 44 48;
+  --color-ink: 240 240 240;
+  --color-ink-muted: 171 171 171;
+  --color-ink-subtle: 102 102 102;
+}
+
 @layer base {
   html,
   body,
@@ -21,8 +42,12 @@
 
   body {
     font-family: theme('fontFamily.sans');
-    color: theme('colors.ink.DEFAULT');
-    background: theme('colors.surface.DEFAULT');
+    color: rgb(var(--color-ink));
+    background: rgb(var(--color-surface));
     -webkit-font-smoothing: antialiased;
+  }
+
+  html.is-transparent body {
+    background: transparent;
   }
 }

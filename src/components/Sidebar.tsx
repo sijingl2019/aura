@@ -22,8 +22,10 @@ export function Sidebar({ onSelect }: SidebarProps) {
     onSelect?.(id);
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string, title: string) => {
     e.stopPropagation();
+    const label = title.trim() || '此对话';
+    if (!confirm(`确定删除「${label}」吗？删除后不可恢复。`)) return;
     await remove(id);
   };
 
@@ -57,7 +59,7 @@ export function Sidebar({ onSelect }: SidebarProps) {
                 <span className="truncate">{c.title}</span>
                 <span
                   role="button"
-                  onClick={(e) => handleDelete(e, c.id)}
+                  onClick={(e) => handleDelete(e, c.id, c.title)}
                   className="ml-2 hidden shrink-0 rounded px-1 text-xs text-ink-subtle hover:bg-red-500/10 hover:text-red-500 group-hover:inline"
                   title="删除"
                 >

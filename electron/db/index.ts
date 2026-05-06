@@ -44,6 +44,10 @@ const MIGRATIONS: Migration[] = [
       ALTER TABLE conversations ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 3,
+    sql: `ALTER TABLE messages ADD COLUMN skill_name TEXT;`,
+  },
 ];
 
 let db: Database.Database | null = null;
