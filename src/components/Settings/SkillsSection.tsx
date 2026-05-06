@@ -1,5 +1,5 @@
+import type { SkillListItem } from '@shared/types';
 import { useEffect, useState } from 'react';
-import type { Skill, SkillListItem } from '@shared/types';
 
 // ── Static skill catalogue ────────────────────────────────────────────────────
 
@@ -213,7 +213,9 @@ function EditDialog({ initial, onSave, onClose, isNew }: EditDialogProps) {
           </button>
           <button
             type="button"
-            onClick={() => canSave && onSave({ name: name.trim(), description: description.trim(), body })}
+            onClick={() =>
+              canSave && onSave({ name: name.trim(), description: description.trim(), body })
+            }
             disabled={!canSave}
             className="h-8 rounded-md bg-accent px-4 text-sm text-white hover:opacity-90 disabled:opacity-40"
           >
@@ -240,7 +242,12 @@ export function SkillsSection() {
   const [skills, setSkills] = useState<SkillListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState<{ id: string; name: string; description: string; body: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<{
+    id: string;
+    name: string;
+    description: string;
+    body: string;
+  } | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [catalogueSearch, setCatalogueSearch] = useState('');
 
@@ -271,7 +278,12 @@ export function SkillsSection() {
     try {
       const skill = await window.api.skills.get({ id });
       if (skill) {
-        setEditTarget({ id: skill.id, name: skill.name, description: skill.description, body: skill.body });
+        setEditTarget({
+          id: skill.id,
+          name: skill.name,
+          description: skill.description,
+          body: skill.body,
+        });
         setShowAddDialog(true);
       }
     } catch (err) {
@@ -318,14 +330,18 @@ export function SkillsSection() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
-
         {/* ── Installed skills ─────────────────────────────────────────────── */}
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">已安装 Skill</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+              已安装 Skill
+            </h3>
             <button
               type="button"
-              onClick={() => { setShowAddDialog(true); setEditTarget(null); }}
+              onClick={() => {
+                setShowAddDialog(true);
+                setEditTarget(null);
+              }}
               className="flex items-center gap-1 rounded-md bg-accent px-2.5 py-1 text-xs text-white hover:opacity-90"
             >
               <span>+</span>
@@ -356,7 +372,9 @@ export function SkillsSection() {
         {/* ── Skill catalogue ──────────────────────────────────────────────── */}
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">Skill 目录</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+              Skill 目录
+            </h3>
             <input
               type="text"
               value={catalogueSearch}
@@ -381,7 +399,12 @@ export function SkillsSection() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-ink">{item.name}</span>
                       {item.tags.map((t) => (
-                        <span key={t} className="rounded bg-surface-muted px-1.5 py-0.5 text-[10px] text-ink-subtle">{t}</span>
+                        <span
+                          key={t}
+                          className="rounded bg-surface-muted px-1.5 py-0.5 text-[10px] text-ink-subtle"
+                        >
+                          {t}
+                        </span>
                       ))}
                     </div>
                     <p className="mt-0.5 text-xs text-ink-muted">{item.description}</p>
@@ -415,7 +438,10 @@ export function SkillsSection() {
         <EditDialog
           initial={editTarget ?? undefined}
           onSave={handleSave}
-          onClose={() => { setShowAddDialog(false); setEditTarget(null); }}
+          onClose={() => {
+            setShowAddDialog(false);
+            setEditTarget(null);
+          }}
           isNew={!editTarget || !installedIds.has(editTarget.id)}
         />
       )}
@@ -441,9 +467,7 @@ function SkillCard({
       </div>
       <div className="min-w-0 flex-1">
         <span className="text-sm font-medium text-ink">{skill.name}</span>
-        {skill.description && (
-          <p className="text-xs text-ink-muted">{skill.description}</p>
-        )}
+        {skill.description && <p className="text-xs text-ink-muted">{skill.description}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-1">
         <button
@@ -482,7 +506,16 @@ function skillTagEmoji(tags: string[]): string {
 
 function PencilIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 13 13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M9 2l2 2-7 7H2v-2z" />
     </svg>
   );
@@ -490,7 +523,16 @@ function PencilIcon() {
 
 function TrashIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 13 13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M2 4h9M5 4V2.5h3V4M4.5 4l.5 6h3l.5-6" />
     </svg>
   );

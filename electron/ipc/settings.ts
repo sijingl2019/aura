@@ -31,7 +31,10 @@ export interface SettingsIpcCallbacks {
   onTrayControl: (show: boolean) => void;
 }
 
-export function registerSettingsIpc(onShortcutsChanged?: () => void): void {
+export function registerSettingsIpc(
+  callbacks?: SettingsIpcCallbacks,
+  onShortcutsChanged?: () => void,
+): void {
   ipcMain.handle('settings:get', () => getSettings());
 
   ipcMain.handle('settings:upsertProvider', (_e, provider: ProviderConfigInput) =>
