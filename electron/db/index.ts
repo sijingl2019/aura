@@ -38,6 +38,12 @@ const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at DESC);
     `,
   },
+  {
+    version: 2,
+    sql: `
+      ALTER TABLE conversations ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];
 
 let db: Database.Database | null = null;

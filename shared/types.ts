@@ -81,6 +81,7 @@ export interface QuickQuestionEvent {
 
 export interface DbAPI {
   listConversations: () => Promise<Conversation[]>;
+  getOrCreateSystemConversation: () => Promise<Conversation>;
   createConversation: (params: { title?: string }) => Promise<Conversation>;
   deleteConversation: (params: { id: string }) => Promise<void>;
   renameConversation: (params: { id: string; title: string }) => Promise<void>;
@@ -241,10 +242,18 @@ export interface ShortcutsAPI {
   reset: (params: { id: string }) => Promise<ShortcutDef[]>;
 }
 
+export interface AppLaunchEntry {
+  name: string;
+  path: string;
+}
+
 export interface QuickQuestionAPI {
   close: () => Promise<void>;
   expand: () => Promise<void>;
+  resize: (height: number) => Promise<void>;
   openAttachMenu: () => Promise<string[]>;
+  searchApps: (query: string) => Promise<AppLaunchEntry[]>;
+  launchApp: (appPath: string) => Promise<void>;
   onReset: (cb: () => void) => () => void;
 }
 

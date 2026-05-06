@@ -84,13 +84,15 @@ Claude-Code-style skills: scan `userData/skills/<id>/SKILL.md` + `resourcesPath/
 - SQLite via better-sqlite3 at `app.getPath('userData')/aura.db`; WAL mode; `PRAGMA user_version`-driven migrations wrapped in `db.transaction(...)` so a partial migration rolls back rather than leaving a broken schema.
 - `listMessages` must `ORDER BY created_at ASC, rowid ASC`. `created_at` alone ties at millisecond granularity; `id` (UUID) tiebreaks non-deterministically and reorders assistant/tool rows written inside the same ms, which then breaks Anthropic message construction. `rowid` is guaranteed monotonic per insert.
 - Conversation title auto-renames to the first ~8 words of the first user message (see `isFirstUserMsg` branch in `runtime.ts`).
+- **System conversations** (`is_system = 1`): added in migration v2. The quick question window always writes to a single system conversation (created on-demand via `getOrCreateSystemConversation()` in [electron/db/repo.ts](electron/db/repo.ts)). `listConversations` and `searchConversations` both filter `WHERE is_system = 0` so system conversations never appear in the sidebar or search. Do not remove this filter.
 
 ### Settings UI
 
-Settings are opened via **File → Settings…** in the app menu ([src/components/AppMenu.tsx](src/components/AppMenu.tsx)), which calls `openSettings('providers')` on [src/stores/ui.ts](src/stores/ui.ts). The modal ([src/components/Settings/SettingsModal.tsx](src/components/Settings/SettingsModal.tsx)) has a left icon rail with two tabs:
+Settings are opened via **File → Settings…** in the app menu ([src/components/AppMenu.tsx](src/components/AppMenu.tsx)), which calls `openSettings('providers')` on [src/stores/ui.ts](src/stores/ui.ts). The modal ([src/components/Settings/SettingsModal.tsx](src/components/Settings/SettingsModal.tsx)) has a left icon rail with three tabs:
 
 - **模型服务** (`section = 'providers'`): `ProviderList` (searchable, reorderable) + `ProviderDetail` (API key show/hide, base URL reset, model add/remove, delete for non-builtins). Adding a new provider goes through `AddProviderDialog` with an icon picker.
 - **默认模型** (`section = 'default-model'`): `DefaultModelSection` — a `ModelCombobox` restricted to enabled providers, with a clear button.
+- **快捷键** (`section = 'shortcuts'`): `KeyboardShortcutsSection` ([src/components/Settings/KeyboardShortcutsSection.tsx](src/components/Settings/KeyboardShortcutsSection.tsx)) — table of all shortcuts with click-to-record editing and per-shortcut reset. Shortcut definitions live in `DEFAULT_SHORTCUTS` in [electron/config/hardcoded.ts](electron/config/hardcoded.ts); only overrides are persisted to `settings.json` via `getShortcuts() / setShortcutOverride() / resetShortcut()` in [electron/config/store.ts](electron/config/store.ts). IPC channels: `shortcuts:get`, `shortcuts:set`, `shortcuts:reset`.
 
 `ModelCombobox` ([src/components/Settings/ModelCombobox.tsx](src/components/Settings/ModelCombobox.tsx)) is a reusable searchable grouped dropdown that accepts `size: 'sm' | 'md'`. It is used both in `DefaultModelSection` and in `ModelSwitcher`.
 
@@ -99,6 +101,26 @@ Settings are opened via **File → Settings…** in the app menu ([src/component
 Renderer stores:
 - [src/stores/settings.ts](src/stores/settings.ts) — mirrors `AppSettings`; exposes `load / upsertProvider / deleteProvider / setDefaultModel / reorderProviders`.
 - [src/stores/ui.ts](src/stores/ui.ts) — `settingsOpen`, `settingsSection`, `openSettings(section?)`, `closeSettings()`.
+
+### Quick Question Window
+
+A frameless, transparent, always-on-top floating window opened via global shortcut (default `CmdOrCtrl+Space`, configurable). Managed by [electron/windows/quickQuestionWindow.ts](electron/windows/quickQuestionWindow.ts); IPC in [electron/ipc/quickQuestionIpc.ts](electron/ipc/quickQuestionIpc.ts); renderer at [src/routes/QuickQuestionRoute.tsx](src/routes/QuickQuestionRoute.tsx).
+
+**Lifecycle**: starts at 52px (input only), positioned at screen-center × 2/3 height. `quickQuestion:expand` grows to `screenHeight / 3`. `quickQuestion:resize(height)` sets an arbitrary height. On hide → `win.hide()` (not destroy) + sends `quickQuestion:reset` to renderer after 50ms; blur auto-hides with 120ms debounce + `ignoreBlur` guard for dialogs.
+
+**Special input modes** (detected by prefix, no LLM call):
+- `= <expr>` — **calculator**: evaluates math in a CSP-safe recursive-descent parser (no `eval`/`new Function` — blocked by `script-src 'self'` in index.html). Shows result above input; "复制到剪贴板" copies and closes.
+- `. <query>` — **app launcher**: searches Windows Start Menu `.lnk` files via PowerShell using `-EncodedCommand` (base64 UTF-16LE) to avoid cmd.exe escaping issues. UTF-8 output forced with `[Console]::OutputEncoding`. Results cached 5 min (empty results not cached). Arrow keys navigate, Enter launches via `shell.openPath()`.
+
+**Chat mode**: reuses existing `llm:stream` + `llm:event` IPC. All messages are stored in a single system conversation (`is_system = 1`) fetched via `db:getOrCreateSystemConversation` — never shown in the main conversation list.
+
+**Window resize on mode change**: renderer calls `quickQuestion:resize(height)` whenever the mode/content changes — calc: 132px, launcher: `52 + 16 + N×38` rows.
+
+### Selection Toolbar
+
+Frameless, transparent, `focusable: false` window shown near selected text. Managed by [electron/windows/toolbarWindow.ts](electron/windows/toolbarWindow.ts).
+
+**Deduplication invariant**: `hideToolbar()` uses `win.hide()` (synchronous), NOT `win.close()`. Using `close()` was a race condition — `toolbarWindow` was nulled immediately but the async `closed` event fires later; a new text-selection between the two created a second window. The single `toolbarWindow` instance is reused across selections; only `destroyToolbar()` (called from `syncSelectionConfig` when feature is disabled and from `teardownSelectionIpc` on quit) actually destroys it.
 
 ## Conventions
 

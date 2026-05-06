@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import {
   createConversation,
   deleteConversation,
+  getOrCreateSystemConversation,
   listConversations,
   listMessages,
   renameConversation,
@@ -11,6 +12,8 @@ import {
 
 export function registerDbIpc(): void {
   ipcMain.handle('db:listConversations', () => listConversations());
+
+  ipcMain.handle('db:getOrCreateSystemConversation', () => getOrCreateSystemConversation());
 
   ipcMain.handle('db:createConversation', (_e, params: { title?: string } = {}) =>
     createConversation(params.title),

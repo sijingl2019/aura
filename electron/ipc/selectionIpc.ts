@@ -2,11 +2,13 @@ import { screen } from 'electron';
 import type { SelectionHookConstructor, SelectionHookInstance, TextSelectionData } from 'selection-hook';
 import { getSettings } from '../config/store';
 import {
+  destroyToolbar,
   getToolbarBounds,
   hideToolbar,
   showToolbar,
   type Anchor,
 } from '../windows/toolbarWindow';
+import { closeUnpinnedPopup } from '../windows/popupWindow';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const SelectionHook: SelectionHookConstructor = require('selection-hook');
@@ -23,6 +25,10 @@ export function initSelectionIpc(): void {
     const text = data.text?.trim();
     if (!text) return;
 
+    // Close any unpinned popup when new text is selected.
+    // Pinned popups remain open since the user explicitly pinned them.
+    closeUnpinnedPopup();
+
     showToolbar(text, resolveAnchor(data));
   });
 
@@ -32,12 +38,12 @@ export function initSelectionIpc(): void {
     const bounds = getToolbarBounds();
     if (!bounds) return;
     if (e.x === INVALID || e.y === INVALID) return;
-    const dip = screen.screenToDipPoint({ x: e.x, y: e.y });
+    // bounds are in physical pixels (screen coordinates), compare directly without DIP conversion
     const inside =
-      dip.x >= bounds.x &&
-      dip.x <= bounds.x + bounds.width &&
-      dip.y >= bounds.y &&
-      dip.y <= bounds.y + bounds.height;
+      e.x >= bounds.x &&
+      e.x <= bounds.x + bounds.width &&
+      e.y >= bounds.y &&
+      e.y <= bounds.y + bounds.height;
     if (!inside) hideToolbar();
   });
 
@@ -60,7 +66,7 @@ export function syncSelectionConfig(): void {
   } else if (!needHook && hookRunning) {
     hook.stop();
     hookRunning = false;
-    hideToolbar();
+    destroyToolbar();
   }
 }
 
@@ -70,7 +76,7 @@ export function teardownSelectionIpc(): void {
     hookRunning = false;
   }
   hook.cleanup();
-  hideToolbar();
+  destroyToolbar();
 }
 
 function resolveAnchor(data: TextSelectionData): Anchor {

@@ -38,6 +38,8 @@ const api = {
   db: {
     listConversations: () =>
       ipcRenderer.invoke('db:listConversations') as Promise<Conversation[]>,
+    getOrCreateSystemConversation: () =>
+      ipcRenderer.invoke('db:getOrCreateSystemConversation') as Promise<Conversation>,
     createConversation: (params: { title?: string } = {}) =>
       ipcRenderer.invoke('db:createConversation', params) as Promise<Conversation>,
     deleteConversation: (params: { id: string }) =>
@@ -115,7 +117,12 @@ const api = {
   quickQuestion: {
     close: () => ipcRenderer.invoke('quickQuestion:close') as Promise<void>,
     expand: () => ipcRenderer.invoke('quickQuestion:expand') as Promise<void>,
+    resize: (height: number) => ipcRenderer.invoke('quickQuestion:resize', height) as Promise<void>,
     openAttachMenu: () => ipcRenderer.invoke('quickQuestion:openAttachMenu') as Promise<string[]>,
+    searchApps: (query: string) =>
+      ipcRenderer.invoke('quickQuestion:searchApps', query) as Promise<Array<{ name: string; path: string }>>,
+    launchApp: (appPath: string) =>
+      ipcRenderer.invoke('quickQuestion:launchApp', appPath) as Promise<void>,
     onReset: (cb: () => void) => {
       const listener = () => cb();
       ipcRenderer.on('quickQuestion:reset', listener);

@@ -92,11 +92,24 @@ export function showToolbar(text: string, anchor: Anchor): void {
 }
 
 export function hideToolbar(): void {
+  // Use hide() instead of close()/destroy() so the window object stays alive.
+  // close() is async — if a new selection fires before the 'closed' event the old
+  // window hasn't been destroyed yet, toolbarWindow is already null, and showToolbar()
+  // creates a second window, leaving two visible simultaneously.
   if (toolbarWindow && !toolbarWindow.isDestroyed()) {
-    toolbarWindow.close();
+    toolbarWindow.hide();
+  }
+  latestParams = null;
+}
+
+export function destroyToolbar(): void {
+  if (toolbarWindow && !toolbarWindow.isDestroyed()) {
+    toolbarWindow.destroy();
   }
   toolbarWindow = null;
   latestParams = null;
+  measuredWidth = null;
+  measuredHeight = null;
 }
 
 export function getToolbarParams(): ToolbarParams | null {

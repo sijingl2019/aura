@@ -9,6 +9,7 @@ interface ConversationRow {
   provider: string | null;
   created_at: number;
   updated_at: number;
+  is_system: number;
 }
 
 interface MessageRow {
@@ -52,7 +53,7 @@ function mapMessage(row: MessageRow): ChatMessage {
 
 export function listConversations(): Conversation[] {
   const rows = getDb()
-    .prepare('SELECT * FROM conversations ORDER BY updated_at DESC')
+    .prepare('SELECT * FROM conversations WHERE is_system = 0 ORDER BY updated_at DESC')
     .all() as ConversationRow[];
   return rows.map(mapConversation);
 }
@@ -67,10 +68,25 @@ export function createConversation(title?: string): Conversation {
   };
   getDb()
     .prepare(
-      'INSERT INTO conversations (id, title, model, provider, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO conversations (id, title, model, provider, created_at, updated_at, is_system) VALUES (?, ?, ?, ?, ?, ?, 0)',
     )
     .run(conv.id, conv.title, null, null, conv.createdAt, conv.updatedAt);
   return conv;
+}
+
+export function getOrCreateSystemConversation(): Conversation {
+  const db = getDb();
+  const existing = db
+    .prepare('SELECT * FROM conversations WHERE is_system = 1 LIMIT 1')
+    .get() as ConversationRow | undefined;
+  if (existing) return mapConversation(existing);
+
+  const now = Date.now();
+  const id = randomUUID();
+  db.prepare(
+    'INSERT INTO conversations (id, title, model, provider, created_at, updated_at, is_system) VALUES (?, ?, ?, ?, ?, ?, 1)',
+  ).run(id, '快速提问', null, null, now, now);
+  return mapConversation({ id, title: '快速提问', model: null, provider: null, created_at: now, updated_at: now, is_system: 1 });
 }
 
 export function deleteConversation(id: string): void {
@@ -127,7 +143,7 @@ export function searchConversations(query: string, limit = 20): ConversationSear
   const titleRows = db
     .prepare(
       `SELECT id, title, updated_at FROM conversations
-       WHERE title LIKE ? ORDER BY updated_at DESC LIMIT ?`,
+       WHERE title LIKE ? AND is_system = 0 ORDER BY updated_at DESC LIMIT ?`,
     )
     .all(pattern, limit) as { id: string; title: string; updated_at: number }[];
 
@@ -136,7 +152,7 @@ export function searchConversations(query: string, limit = 20): ConversationSear
       `SELECT m.conversation_id, m.content, c.title, c.updated_at
        FROM messages m
        JOIN conversations c ON m.conversation_id = c.id
-       WHERE m.content LIKE ? AND m.role IN ('user', 'assistant')
+       WHERE m.content LIKE ? AND m.role IN ('user', 'assistant') AND c.is_system = 0
        ORDER BY c.updated_at DESC LIMIT ?`,
     )
     .all(pattern, limit) as {

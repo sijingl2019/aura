@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { PopupParams } from '@shared/types';
 import { createProvider } from '../providers';
 import { getSettings } from '../config/store';
-import { createPopupWindow, getPopupParams } from '../windows/popupWindow';
+import { createPopupWindow, getPopupParams, setPopupPinned } from '../windows/popupWindow';
 
 const ACTION_PROMPTS: Record<string, (text: string) => string> = {
   translate: (t) => `请将以下内容翻译为中文，直接输出译文，不要添加任何解释：\n\n${t}`,
@@ -119,7 +119,8 @@ export function registerPopupIpc(): void {
   });
 
   ipcMain.handle('popup:setPin', (e, pinned: boolean) => {
-    BrowserWindow.fromWebContents(e.sender)?.setAlwaysOnTop(pinned);
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (win) setPopupPinned(win, pinned);
   });
 
   ipcMain.handle('popup:minimize', (e) => {
