@@ -6,6 +6,7 @@ const en: Translations = {
     defaultModel: 'Default Model',
     knowledge: 'Knowledge',
     selection: 'Selection',
+    shortcuts: 'Shortcuts',
     skills: 'Skills',
     mcp: 'MCP',
     general: 'General',

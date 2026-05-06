@@ -6,6 +6,7 @@ const zhTW: Translations = {
     defaultModel: '預設模型',
     knowledge: '知識庫',
     selection: '劃詞助手',
+    shortcuts: '快捷鍵',
     skills: 'Skill',
     mcp: 'MCP',
     general: '通用',

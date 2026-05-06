@@ -131,15 +131,7 @@ export function SettingsModal() {
             </SidebarItem>
 
             <SidebarItem
-              label="划词助手"
-              active={section === 'selection'}
-              collapsed={navCollapsed}
-              onClick={() => openSettings('selection')}
-            >
-              <SelectionIcon />
-            </SidebarItem>
-            <SidebarItem
-              label="快捷键"
+              label={t.nav.shortcuts}
               active={section === 'shortcuts'}
               collapsed={navCollapsed}
               onClick={() => openSettings('shortcuts')}

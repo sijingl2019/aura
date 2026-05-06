@@ -4,6 +4,7 @@ export interface Translations {
     defaultModel: string;
     knowledge: string;
     selection: string;
+    shortcuts: string;
     skills: string;
     mcp: string;
     general: string;
@@ -58,6 +59,7 @@ const zhCN: Translations = {
     defaultModel: '默认模型',
     knowledge: '知识库',
     selection: '划词助手',
+    shortcuts: '快捷键',
     skills: 'Skill',
     mcp: 'MCP',
     general: '通用',
