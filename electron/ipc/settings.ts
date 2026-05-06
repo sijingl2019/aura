@@ -29,12 +29,10 @@ import { syncSelectionConfig } from './selectionIpc';
 
 export interface SettingsIpcCallbacks {
   onTrayControl: (show: boolean) => void;
+  onShortcutsChanged: () => void;
 }
 
-export function registerSettingsIpc(
-  callbacks?: SettingsIpcCallbacks,
-  onShortcutsChanged?: () => void,
-): void {
+export function registerSettingsIpc(callbacks?: SettingsIpcCallbacks): void {
   ipcMain.handle('settings:get', () => getSettings());
 
   ipcMain.handle('settings:upsertProvider', (_e, provider: ProviderConfigInput) =>
@@ -134,13 +132,13 @@ export function registerSettingsIpc(
 
   ipcMain.handle('shortcuts:set', (_e, params: { id: string; keys: string }) => {
     const result = setShortcutOverride(params.id, params.keys);
-    onShortcutsChanged?.();
+    callbacks?.onShortcutsChanged?.();
     return result;
   });
 
   ipcMain.handle('shortcuts:reset', (_e, params: { id: string }) => {
     const result = resetShortcut(params.id);
-    onShortcutsChanged?.();
+    callbacks?.onShortcutsChanged?.();
     return result;
   });
 }

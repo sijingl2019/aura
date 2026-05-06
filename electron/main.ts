@@ -301,19 +301,17 @@ app.whenReady().then(async () => {
   registerDbIpc();
   registerLlmIpc({ skills });
   registerSkillsIpc(skills);
-  registerSettingsIpc(
-    {
-      onTrayControl: (show) => {
-        if (show) {
-          if (!tray) createTray();
-        } else {
-          tray?.destroy();
-          tray = null;
-        }
-      },
+  registerSettingsIpc({
+    onTrayControl: (show) => {
+      if (show) {
+        if (!tray) createTray();
+      } else {
+        tray?.destroy();
+        tray = null;
+      }
     },
-    updateGlobalShortcuts,
-  );
+    onShortcutsChanged: updateGlobalShortcuts,
+  });
   registerWorkspaceIpc();
   registerPopupIpc();
   registerToolbarIpc();
