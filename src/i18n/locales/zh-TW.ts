@@ -1,15 +1,26 @@
 import type { Translations } from './zh-CN';
 
 const zhTW: Translations = {
+  titleBar: {
+    menu: '選單',
+    toggleSidebar: '切換側邊欄',
+    search: '搜尋',
+    back: '返回',
+    forward: '前進',
+    minimize: '最小化',
+    maximize: '最大化',
+    restore: '還原',
+    close: '關閉',
+  },
   nav: {
     providers: '模型服務',
     defaultModel: '預設模型',
+    general: '常用配置',
     knowledge: '知識庫',
-    selection: '劃詞助手',
-    shortcuts: '快捷鍵',
     skills: 'Skill',
     mcp: 'MCP',
-    general: '通用',
+    shortcuts: '快捷鍵',
+    selection: '劃詞助手',
   },
   general: {
     sectionGeneral: '一般設定',
@@ -52,6 +63,17 @@ const zhTW: Translations = {
     expand: '展開選單',
     on: '開',
     off: '關',
+  },
+  menu: {
+    file: '檔案',
+    edit: '編輯',
+    view: '檢視',
+    help: '說明',
+    newConversation: '新建對話',
+    settings: '設定...',
+    closeWindow: '關閉視窗',
+    exit: '結束',
+    empty: '暫無項目',
   },
 };
 

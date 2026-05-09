@@ -141,4 +141,56 @@ export function registerSettingsIpc(callbacks?: SettingsIpcCallbacks): void {
     callbacks?.onShortcutsChanged?.();
     return result;
   });
+
+  ipcMain.handle(
+    'settings:detectProvider',
+    async (
+      _e,
+      params: { kind: string; apiKey: string; baseURL: string },
+    ): Promise<{ success: boolean; message: string }> => {
+      if (!params.apiKey?.trim()) {
+        return { success: false, message: '请先输入 API 密钥' };
+      }
+      const base = params.baseURL?.trim() || '';
+      if (!base) {
+        return { success: false, message: '请先输入 API 地址' };
+      }
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        try {
+          if (params.kind === 'openai') {
+            const response = await fetch(`${base.replace(/\/$/, '')}/models`, {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${params.apiKey.trim()}` },
+              signal: controller.signal,
+            });
+            if (!response.ok) {
+              return { success: false, message: `连接失败: ${response.status} ${response.statusText}` };
+            }
+            return { success: true, message: '连接成功！' };
+          } else {
+            const response = await fetch(`${base.replace(/\/$/, '')}/messages`, {
+              method: 'POST',
+              headers: {
+                'x-api-key': params.apiKey.trim(),
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify({ model: 'test', messages: [] }),
+              signal: controller.signal,
+            });
+            if (response.status === 401 || response.status === 403) {
+              return { success: false, message: 'API 密钥无效' };
+            }
+            return { success: true, message: '连接成功！' };
+          }
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      } catch (error) {
+        return { success: false, message: `检测失败: ${(error as Error).message}` };
+      }
+    },
+  );
 }

@@ -71,7 +71,7 @@ const api = {
     list: () => ipcRenderer.invoke('skills:list') as Promise<SkillListItem[]>,
     get: (params: { id: string }) =>
       ipcRenderer.invoke('skills:get', params) as Promise<Skill | null>,
-    create: (params: { name: string; description: string; body: string }) =>
+    create: (params: { name: string; description: string; body: string; id?: string }) =>
       ipcRenderer.invoke('skills:create', params) as Promise<Skill>,
     update: (params: { id: string; name: string; description: string; body: string }) =>
       ipcRenderer.invoke('skills:update', params) as Promise<Skill>,
@@ -107,6 +107,8 @@ const api = {
       ipcRenderer.invoke('settings:setGeneral', config) as Promise<AppSettings>,
     getGeneral: () =>
       ipcRenderer.invoke('settings:getGeneral') as Promise<GeneralConfig>,
+    detectProvider: (params: { kind: string; apiKey: string; baseURL: string }) =>
+      ipcRenderer.invoke('settings:detectProvider', params) as Promise<{ success: boolean; message: string }>,
   },
   popup: {
     open: (params: { action: string; text: string; screenX: number; screenY: number }) =>

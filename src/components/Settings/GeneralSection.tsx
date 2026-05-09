@@ -1,5 +1,5 @@
 /* eslint-disable react/forbid-dom-props */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { AppLanguage, AppTheme, GeneralConfig, ProxyMode } from '@shared/types';
 import { useSettingsStore } from '@/stores/settings';
 import { useT, useI18n } from '@/i18n';
@@ -18,6 +18,8 @@ export function GeneralSection() {
 
   const [draft, setDraft] = useState<GeneralConfig>(general);
   const [customColor, setCustomColor] = useState(general.accentColor);
+  const [avatarInput, setAvatarInput] = useState(general.userAvatar ?? '');
+  const avatarFileRef = useRef<HTMLInputElement>(null);
 
   const persist = (patch: Partial<GeneralConfig>) => {
     const next = { ...draft, ...patch };
@@ -31,6 +33,69 @@ export function GeneralSection() {
 
         {/* ── 常规设置 ──────────────────────────────────────── */}
         <Section title={t.general.sectionGeneral}>
+          <Row label="我的头像">
+            <div className="flex items-center gap-3">
+              {/* preview */}
+              <div
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent/15 text-base font-medium text-accent overflow-hidden"
+                onClick={() => avatarFileRef.current?.click()}
+                title="点击上传图片"
+              >
+                {draft.userAvatar && draft.userAvatar.startsWith('data:') ? (
+                  <img src={draft.userAvatar} alt="avatar" className="h-full w-full object-cover" />
+                ) : (
+                  (draft.userAvatar?.trim() || '我').charAt(0)
+                )}
+              </div>
+              {/* text/emoji input */}
+              <input
+                type="text"
+                maxLength={2}
+                value={avatarInput}
+                placeholder="我"
+                onChange={(e) => {
+                  setAvatarInput(e.target.value);
+                  persist({ userAvatar: e.target.value || undefined });
+                }}
+                className="h-8 w-16 rounded-md border border-black/10 bg-surface px-2.5 text-sm text-ink focus:border-accent/40 focus:outline-none"
+              />
+              <span className="text-xs text-ink-subtle">或</span>
+              <button
+                type="button"
+                onClick={() => avatarFileRef.current?.click()}
+                className="h-8 rounded-md border border-black/10 px-3 text-xs text-ink-muted hover:border-accent/40 hover:text-ink"
+              >
+                上传图片
+              </button>
+              {draft.userAvatar && (
+                <button
+                  type="button"
+                  onClick={() => { setAvatarInput(''); persist({ userAvatar: undefined }); }}
+                  className="text-xs text-red-400 hover:text-red-500"
+                >
+                  清除
+                </button>
+              )}
+              <input
+                ref={avatarFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const dataUrl = reader.result as string;
+                    setAvatarInput('');
+                    persist({ userAvatar: dataUrl });
+                  };
+                  reader.readAsDataURL(file);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          </Row>
           <Row label={t.general.language}>
             <select
               aria-label={t.general.language}

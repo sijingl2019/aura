@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { useNavigate } from 'react-router-dom';
 import { useConversationsStore } from '@/stores/conversations';
 import { useUiStore } from '@/stores/ui';
+import { useT } from '@/i18n';
 
 interface AppMenuProps {
   anchor: HTMLElement | null;
@@ -21,6 +22,7 @@ export function AppMenu({ anchor, open, onClose }: AppMenuProps) {
   const navigate = useNavigate();
   const create = useConversationsStore((s) => s.create);
   const openSettings = useUiStore((s) => s.openSettings);
+  const t = useT();
 
   useEffect(() => {
     if (!open) { setActive(null); return; }
@@ -94,10 +96,10 @@ export function AppMenu({ anchor, open, onClose }: AppMenuProps) {
   };
 
   const topItems: { key: TopKey; label: string }[] = [
-    { key: 'file', label: 'File' },
-    { key: 'edit', label: 'Edit' },
-    { key: 'view', label: 'View' },
-    { key: 'help', label: 'Help' },
+    { key: 'file', label: t.menu.file },
+    { key: 'edit', label: t.menu.edit },
+    { key: 'view', label: t.menu.view },
+    { key: 'help', label: t.menu.help },
   ];
 
   return (
@@ -133,14 +135,14 @@ export function AppMenu({ anchor, open, onClose }: AppMenuProps) {
         >
           {active === 'file' && (
             <>
-              <MenuItem label="New Conversation" shortcut="⌘N" onClick={handleNewConv} />
-              <MenuItem label="Settings..." shortcut="⌘," onClick={handleSettings} />
+              <MenuItem label={t.menu.newConversation} shortcut="⌘N" onClick={handleNewConv} />
+              <MenuItem label={t.menu.settings} shortcut="⌘," onClick={handleSettings} />
               <MenuDivider />
-              <MenuItem label="Close Window" shortcut="⌘W" onClick={handleCloseWindow} />
-              <MenuItem label="Exit" onClick={handleCloseWindow} />
+              <MenuItem label={t.menu.closeWindow} shortcut="⌘W" onClick={handleCloseWindow} />
+              <MenuItem label={t.menu.exit} onClick={handleCloseWindow} />
             </>
           )}
-          {active !== 'file' && <EmptySubmenu />}
+          {active !== 'file' && <EmptySubmenu t={t} />}
         </div>
       )}
     </>
@@ -175,8 +177,8 @@ function MenuDivider() {
   return <div className="my-1 h-px bg-black/5" />;
 }
 
-function EmptySubmenu() {
-  return <div className="px-3 py-1.5 text-xs text-ink-subtle">暂无条目</div>;
+function EmptySubmenu({ t }: { t: ReturnType<typeof useT> }) {
+  return <div className="px-3 py-1.5 text-xs text-ink-subtle">{t.menu.empty}</div>;
 }
 
 function ChevronRightIcon(): ReactNode {

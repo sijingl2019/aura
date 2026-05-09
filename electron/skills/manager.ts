@@ -34,24 +34,26 @@ function parseSkillId(name: string): string {
 export async function createSkill(
   name: string,
   description: string,
-  body: string
+  body: string,
+  forceId?: string,
 ): Promise<Skill> {
   await ensureSkillsDir();
 
-  let skillId = parseSkillId(name);
+  let skillId = forceId || parseSkillId(name) || `skill-${Date.now()}`;
   let skillDir = path.join(SKILLS_DIR, skillId);
   let counter = 1;
 
-  // Handle name collisions
-  while (true) {
-    try {
-      await fs.access(skillDir);
-      skillId = `${parseSkillId(name)}-${counter}`;
-      skillDir = path.join(SKILLS_DIR, skillId);
-      counter++;
-    } catch {
-      // Directory doesn't exist, we can use this ID
-      break;
+  // Handle name collisions (only when not using forceId)
+  if (!forceId) {
+    while (true) {
+      try {
+        await fs.access(skillDir);
+        skillId = `${parseSkillId(name) || 'skill'}-${counter}`;
+        skillDir = path.join(SKILLS_DIR, skillId);
+        counter++;
+      } catch {
+        break;
+      }
     }
   }
 

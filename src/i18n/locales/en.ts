@@ -1,15 +1,26 @@
 import type { Translations } from './zh-CN';
 
 const en: Translations = {
+  titleBar: {
+    menu: 'Menu',
+    toggleSidebar: 'Toggle sidebar',
+    search: 'Search',
+    back: 'Back',
+    forward: 'Forward',
+    minimize: 'Minimize',
+    maximize: 'Maximize',
+    restore: 'Restore',
+    close: 'Close',
+  },
   nav: {
     providers: 'Providers',
     defaultModel: 'Default Model',
+    general: 'General Settings',
     knowledge: 'Knowledge',
-    selection: 'Selection',
-    shortcuts: 'Shortcuts',
     skills: 'Skills',
     mcp: 'MCP',
-    general: 'General',
+    shortcuts: 'Shortcuts',
+    selection: 'Selection Toolbar',
   },
   general: {
     sectionGeneral: 'General Settings',
@@ -52,6 +63,17 @@ const en: Translations = {
     expand: 'Expand',
     on: 'On',
     off: 'Off',
+  },
+  menu: {
+    file: 'File',
+    edit: 'Edit',
+    view: 'View',
+    help: 'Help',
+    newConversation: 'New Conversation',
+    settings: 'Settings...',
+    closeWindow: 'Close Window',
+    exit: 'Exit',
+    empty: 'No items',
   },
 };
 

@@ -496,8 +496,8 @@ export function QuickQuestionRoute() {
             }}
             placeholder={isCalc ? '输入数学表达式…' : isLauncher ? '搜索程序…' : '输入你的问题…'}
             rows={1}
-            className="flex-1 resize-none bg-transparent text-[13px] leading-normal text-gray-800 outline-none placeholder:text-gray-400"
-            style={{ maxHeight: 80, overflowY: 'auto', paddingTop: 0, paddingBottom: 0 }}
+            className="flex-1 resize-none bg-white border border-gray-300 rounded-md px-2 text-[13px] leading-normal text-gray-800 outline-none placeholder:text-gray-400 focus:border-accent/40"
+            style={{ maxHeight: 80, overflowY: 'auto', paddingTop: '6px', paddingBottom: '6px' }}
           />
 
           {!isSpecialMode && (

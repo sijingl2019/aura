@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { ChatMessage } from '@shared/types';
+import type { ChatMessage, ProviderConfig } from '@shared/types';
 import { useConversationsStore } from '@/stores/conversations';
 import { useStreamingStore } from '@/stores/streaming';
+import { useSettingsStore } from '@/stores/settings';
 import { MessageBubble } from './MessageBubble';
 
 interface ChatViewProps {
@@ -11,8 +12,21 @@ interface ChatViewProps {
 export function ChatView({ conversationId }: ChatViewProps) {
   const messages = useConversationsStore((s) => s.messages[conversationId] ?? []);
   const loadMessages = useConversationsStore((s) => s.loadMessages);
+  const conversation = useConversationsStore((s) => s.list.find((c) => c.id === conversationId));
   const streaming = useStreamingStore();
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const providers = useSettingsStore((s) => s.providers);
+  const defaultModel = useSettingsStore((s) => s.defaultModel);
+  const userAvatar = useSettingsStore((s) => s.general.userAvatar);
+
+  const providerInfo = useMemo<Pick<ProviderConfig, 'id' | 'name' | 'icon' | 'iconBg'> | undefined>(() => {
+    const providerId = conversation?.provider ?? defaultModel?.providerId;
+    if (!providerId) return undefined;
+    const p = providers.find((pr) => pr.id === providerId);
+    if (!p) return undefined;
+    return { id: p.id, name: p.name, icon: p.icon, iconBg: p.iconBg };
+  }, [conversation?.provider, defaultModel?.providerId, providers]);
 
   useEffect(() => {
     loadMessages(conversationId);
@@ -86,6 +100,8 @@ export function ChatView({ conversationId }: ChatViewProps) {
               streamingToolCalls={isStreamingThis ? streaming.toolCalls : undefined}
               isStreaming={isStreamingThis}
               toolResultsMap={isStreamingThis ? undefined : toolResultsMap}
+              providerInfo={providerInfo}
+              userAvatar={userAvatar}
             />
           );
         })}

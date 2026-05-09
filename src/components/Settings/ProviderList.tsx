@@ -58,7 +58,7 @@ export function ProviderList({ selectedId, onSelect }: ProviderListProps) {
                 <span
                   className={
                     'relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ' +
-                    (p.enabled ? 'bg-emerald-500' : 'bg-black/15')
+                    (p.enabled ? 'bg-accent' : 'bg-black/15')
                   }
                 >
                   <span

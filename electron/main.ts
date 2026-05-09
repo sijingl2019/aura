@@ -250,10 +250,13 @@ app.whenReady().then(async () => {
   }
 
   const userSkillsDir = path.join(os.homedir(), '.qiko-aura', 'skills');
-  const resourceSkillsDir = path.join(process.resourcesPath ?? app.getAppPath(), 'skills');
+  // In development, use the project's skills directory; in production, use the bundled one
+  const resourceSkillsDir = app.isPackaged
+    ? path.join(process.resourcesPath ?? app.getAppPath(), 'skills')
+    : path.join(app.getAppPath(), 'skills');
   if (!fs.existsSync(userSkillsDir)) fs.mkdirSync(userSkillsDir, { recursive: true });
 
-  const skills = new SkillStore([userSkillsDir, resourceSkillsDir]);
+  const skills = new SkillStore([userSkillsDir], [resourceSkillsDir]);
   await skills.reload();
 
   // Watch for file system changes in userSkillsDir and auto-reload

@@ -247,6 +247,7 @@ export function SkillsSection() {
     name: string;
     description: string;
     body: string;
+    fromCatalogue?: boolean;
   } | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [catalogueSearch, setCatalogueSearch] = useState('');
@@ -270,7 +271,7 @@ export function SkillsSection() {
   };
 
   const handleInstall = (item: SkillCatalogueItem) => {
-    setEditTarget({ id: item.id, name: item.name, description: item.description, body: item.body });
+    setEditTarget({ id: item.id, name: item.name, description: item.description, body: item.body, fromCatalogue: true });
     setShowAddDialog(true);
   };
 
@@ -305,6 +306,9 @@ export function SkillsSection() {
     try {
       if (editTarget?.id && skills.some((s) => s.id === editTarget.id)) {
         await window.api.skills.update({ id: editTarget.id, ...data });
+      } else if (editTarget?.fromCatalogue && editTarget?.id) {
+        // Install from catalogue: use the catalogue's ID as the folder name
+        await window.api.skills.create({ ...data, id: editTarget.id });
       } else {
         await window.api.skills.create(data);
       }
@@ -393,12 +397,12 @@ export function SkillsSection() {
                   className="flex items-start gap-3 rounded-lg border border-black/5 bg-surface p-3"
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-muted text-base">
-                    {skillTagEmoji(item.tags)}
+                    {item.tags && skillTagEmoji(item.tags)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-ink">{item.name}</span>
-                      {item.tags.map((t) => (
+                      {item.tags?.map((t) => (
                         <span
                           key={t}
                           className="rounded bg-surface-muted px-1.5 py-0.5 text-[10px] text-ink-subtle"
@@ -413,10 +417,10 @@ export function SkillsSection() {
                     type="button"
                     onClick={() => !installed && handleInstall(item)}
                     disabled={installed}
-                    className={`shrink-0 rounded-md px-3 py-1 text-xs transition-colors ${
+                    className={`shrink-0 rounded-md px-3 py-1 text-xs transition-colors font-medium ${
                       installed
-                        ? 'border border-black/10 text-ink-subtle cursor-default'
-                        : 'bg-accent/10 text-accent hover:bg-accent/20'
+                        ? 'bg-accent/20 text-accent cursor-default border border-accent/30'
+                        : 'bg-accent/10 text-accent hover:bg-accent/20 border border-transparent'
                     }`}
                   >
                     {installed ? '已安装' : '安装'}
@@ -463,29 +467,40 @@ function SkillCard({
   return (
     <div className="flex items-center gap-3 rounded-lg border border-black/5 bg-surface px-3 py-2.5">
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-muted text-sm">
-        ✦
+        {skill.icon || '✦'}
       </div>
       <div className="min-w-0 flex-1">
-        <span className="text-sm font-medium text-ink">{skill.name}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-ink">{skill.name}</span>
+          {skill.isBuiltin && (
+            <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+              系统
+            </span>
+          )}
+        </div>
         {skill.description && <p className="text-xs text-ink-muted">{skill.description}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="rounded p-1 text-ink-subtle hover:bg-surface-sunken hover:text-ink"
-          title="编辑"
-        >
-          <PencilIcon />
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="rounded p-1 text-ink-subtle hover:bg-red-500/10 hover:text-red-500"
-          title="删除"
-        >
-          <TrashIcon />
-        </button>
+        {!skill.isBuiltin && (
+          <>
+            <button
+              type="button"
+              onClick={onEdit}
+              className="rounded p-1 text-ink-subtle hover:bg-surface-sunken hover:text-ink"
+              title="编辑"
+            >
+              <PencilIcon />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="rounded p-1 text-ink-subtle hover:bg-red-500/10 hover:text-red-500"
+              title="删除"
+            >
+              <TrashIcon />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

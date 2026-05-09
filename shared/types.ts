@@ -35,6 +35,8 @@ export interface Skill {
   description: string;
   body: string;
   dir: string;
+  icon?: string;
+  isBuiltin?: boolean;
 }
 
 export type StreamEvent =
@@ -112,12 +114,14 @@ export interface SkillListItem {
   id: string;
   name: string;
   description: string;
+  icon?: string;
+  isBuiltin?: boolean;
 }
 
 export interface SkillsAPI {
   list: () => Promise<SkillListItem[]>;
   get: (params: { id: string }) => Promise<Skill | null>;
-  create: (params: { name: string; description: string; body: string }) => Promise<Skill>;
+  create: (params: { name: string; description: string; body: string; id?: string }) => Promise<Skill>;
   update: (params: { id: string; name: string; description: string; body: string }) => Promise<Skill>;
   delete: (params: { id: string }) => Promise<void>;
   onUpdated: (cb: () => void) => () => void;
@@ -239,6 +243,8 @@ export interface GeneralConfig {
   // Tray
   showTrayIcon: boolean;
   minimizeToTrayOnClose: boolean;
+  // Avatar
+  userAvatar?: string; // data URL (image) or single emoji/char
 }
 
 export type McpTransportType = 'builtin' | 'stdio' | 'sse';
@@ -294,6 +300,7 @@ export interface SettingsAPI {
   deleteMcpServer: (params: { id: string }) => Promise<AppSettings>;
   getGeneral: () => Promise<GeneralConfig>;
   setGeneral: (config: GeneralConfig) => Promise<AppSettings>;
+  detectProvider: (params: { kind: ProviderKind; apiKey: string; baseURL: string }) => Promise<{ success: boolean; message: string }>;
 }
 
 export interface WorkspaceFile {

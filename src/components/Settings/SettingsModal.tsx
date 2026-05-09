@@ -90,20 +90,20 @@ export function SettingsModal() {
               <BubbleIcon />
             </SidebarItem>
             <SidebarItem
+              label={t.nav.general}
+              active={section === 'general'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('general')}
+            >
+              <GeneralIcon />
+            </SidebarItem>
+            <SidebarItem
               label={t.nav.knowledge}
               active={section === 'knowledge'}
               collapsed={navCollapsed}
               onClick={() => openSettings('knowledge')}
             >
               <DatabaseIcon />
-            </SidebarItem>
-            <SidebarItem
-              label={t.nav.selection}
-              active={section === 'selection'}
-              collapsed={navCollapsed}
-              onClick={() => openSettings('selection')}
-            >
-              <SelectionIcon />
             </SidebarItem>
             <SidebarItem
               label={t.nav.skills}
@@ -122,21 +122,20 @@ export function SettingsModal() {
               <McpIcon />
             </SidebarItem>
             <SidebarItem
-              label={t.nav.general}
-              active={section === 'general'}
-              collapsed={navCollapsed}
-              onClick={() => openSettings('general')}
-            >
-              <GeneralIcon />
-            </SidebarItem>
-
-            <SidebarItem
               label={t.nav.shortcuts}
               active={section === 'shortcuts'}
               collapsed={navCollapsed}
               onClick={() => openSettings('shortcuts')}
             >
               <KeyboardIcon />
+            </SidebarItem>
+            <SidebarItem
+              label={t.nav.selection}
+              active={section === 'selection'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('selection')}
+            >
+              <SelectionIcon />
             </SidebarItem>
           </div>
           <button

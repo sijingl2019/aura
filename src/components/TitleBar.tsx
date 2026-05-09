@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useT } from '@/i18n';
 import { AppMenu } from './AppMenu';
 
 interface TitleBarProps {
@@ -15,6 +16,7 @@ interface TitleBarProps {
 const isMac = /Mac/.test(navigator.platform);
 
 export function TitleBar({ onToggleSidebar, onOpenSearch }: TitleBarProps) {
+  const t = useT();
   const [maximized, setMaximized] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -29,7 +31,7 @@ export function TitleBar({ onToggleSidebar, onOpenSearch }: TitleBarProps) {
     <>
       <IconButton
         ref={menuButtonRef}
-        title="Menu"
+        title={t.titleBar.menu}
         onClick={() => setMenuOpen((v) => !v)}
       >
         <MenuIcon />
@@ -39,16 +41,16 @@ export function TitleBar({ onToggleSidebar, onOpenSearch }: TitleBarProps) {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
       />
-      <IconButton title="Toggle sidebar" onClick={onToggleSidebar}>
+      <IconButton title={t.titleBar.toggleSidebar} onClick={onToggleSidebar}>
         <SidebarIcon />
       </IconButton>
-      <IconButton title="Search" onClick={onOpenSearch}>
+      <IconButton title={t.titleBar.search} onClick={onOpenSearch}>
         <SearchIcon />
       </IconButton>
-      <IconButton title="Back" disabled>
+      <IconButton title={t.titleBar.back} disabled>
         <ArrowLeftIcon />
       </IconButton>
-      <IconButton title="Forward" disabled>
+      <IconButton title={t.titleBar.forward} disabled>
         <ArrowRightIcon />
       </IconButton>
     </>
@@ -70,16 +72,16 @@ export function TitleBar({ onToggleSidebar, onOpenSearch }: TitleBarProps) {
           </div>
           <div className="flex-1" />
           <div className="no-drag-region flex items-center">
-            <WindowButton title="Minimize" onClick={() => window.api.window.minimize()}>
+            <WindowButton title={t.titleBar.minimize} onClick={() => window.api.window.minimize()}>
               <MinimizeIcon />
             </WindowButton>
             <WindowButton
-              title={maximized ? 'Restore' : 'Maximize'}
+              title={maximized ? t.titleBar.restore : t.titleBar.maximize}
               onClick={() => window.api.window.toggleMaximize()}
             >
               {maximized ? <RestoreIcon /> : <MaximizeIcon />}
             </WindowButton>
-            <WindowButton title="Close" danger onClick={() => window.api.window.close()}>
+            <WindowButton title={t.titleBar.close} danger onClick={() => window.api.window.close()}>
               <CloseIcon />
             </WindowButton>
           </div>

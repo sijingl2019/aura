@@ -5,7 +5,7 @@ import { createSkill, updateSkill, deleteSkill } from '../skills/manager';
 
 export function registerSkillsIpc(skills: SkillStore): void {
   ipcMain.handle('skills:list', (): SkillListItem[] =>
-    skills.list().map((s) => ({ id: s.id, name: s.name, description: s.description })),
+    skills.list().map((s) => ({ id: s.id, name: s.name, description: s.description, icon: s.icon, isBuiltin: s.isBuiltin })),
   );
 
   ipcMain.handle('skills:get', (_e, params: { id: string }) => skills.get(params.id) ?? null);
@@ -14,9 +14,9 @@ export function registerSkillsIpc(skills: SkillStore): void {
     'skills:create',
     async (
       _e,
-      params: { name: string; description: string; body: string }
+      params: { name: string; description: string; body: string; id?: string }
     ): Promise<Skill> => {
-      const skill = await createSkill(params.name, params.description, params.body);
+      const skill = await createSkill(params.name, params.description, params.body, params.id);
       await skills.reload();
       return skill;
     }

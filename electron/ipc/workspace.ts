@@ -42,9 +42,8 @@ export function registerWorkspaceIpc(): void {
     return newCwd;
   });
 
-  ipcMain.handle('workspace:openFolderDialog', async (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getFocusedWindow();
-    const result = await dialog.showOpenDialog(win!, {
+  ipcMain.handle('workspace:openFolderDialog', async () => {
+    const result = await dialog.showOpenDialog({
       properties: ['openDirectory', 'createDirectory'],
       title: '选择工作空间目录',
       defaultPath: workspaceStore.getCwd(),

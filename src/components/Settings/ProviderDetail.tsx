@@ -1,6 +1,77 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProviderConfig, ProviderModel } from '@shared/types';
 import { useSettingsStore } from '@/stores/settings';
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+interface ToastState {
+  message: string;
+  type: 'success' | 'error';
+}
+
+function Toast({ toast, onClose }: { toast: ToastState; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3000);
+    return () => clearTimeout(t);
+  }, [toast, onClose]);
+
+  const isSuccess = toast.type === 'success';
+  return (
+    <div
+      className={
+        'fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-3 shadow-lg backdrop-blur-sm ' +
+        (isSuccess
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          : 'border-red-200 bg-red-50 text-red-800')
+      }
+    >
+      <span className="text-base">{isSuccess ? '✓' : '✕'}</span>
+      <span className="text-sm font-medium">{toast.message}</span>
+      <button type="button" onClick={onClose} className="ml-2 opacity-50 hover:opacity-100">
+        <CloseIcon />
+      </button>
+    </div>
+  );
+}
+
+// ─── ConfirmDialog ────────────────────────────────────────────────────────────
+
+function ConfirmDialog({
+  message,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/20" onClick={onCancel} />
+      <div className="relative w-72 rounded-xl border border-black/8 bg-white shadow-xl">
+        <div className="px-5 py-4">
+          <p className="text-sm text-ink">{message}</p>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-black/5 px-5 py-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-black/10 px-4 py-1.5 text-sm text-ink-muted hover:border-black/20 hover:text-ink"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-md bg-red-500 px-4 py-1.5 text-sm text-white hover:bg-red-600"
+          >
+            删除
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface ProviderDetailProps {
   providerId: string | null;
@@ -31,13 +102,27 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
   const [baseURL, setBaseURL] = useState(provider.baseURL);
   const [enabled, setEnabled] = useState(provider.enabled);
   const [newModelOpen, setNewModelOpen] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // name editing
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(provider.name);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setApiKey(provider.apiKey);
     setBaseURL(provider.baseURL);
     setEnabled(provider.enabled);
     setApiKeyShown(false);
-  }, [provider.id, provider.apiKey, provider.baseURL, provider.enabled]);
+    setNameValue(provider.name);
+    setEditingName(false);
+  }, [provider.id, provider.apiKey, provider.baseURL, provider.enabled, provider.name]);
+
+  useEffect(() => {
+    if (editingName) nameInputRef.current?.select();
+  }, [editingName]);
 
   const persist = (patch: Partial<ProviderConfig>) => {
     void upsertProvider({ ...provider, ...patch });
@@ -61,6 +146,29 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
     persist({ baseURL: '' });
   };
 
+  const commitName = () => {
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== provider.name) persist({ name: trimmed });
+    else setNameValue(provider.name);
+    setEditingName(false);
+  };
+
+  const handleDetect = async () => {
+    setDetecting(true);
+    try {
+      const result = await window.api.settings.detectProvider({
+        kind: provider.kind,
+        apiKey,
+        baseURL: baseURL || provider.baseURL,
+      });
+      setToast({ message: result.message, type: 'success' });
+    } catch (error) {
+      setToast({ message: `检测失败: ${(error as Error).message}`, type: 'error' });
+    } finally {
+      setDetecting(false);
+    }
+  };
+
   const handleAddModel = (id: string) => {
     const trimmed = id.trim();
     if (!trimmed) return;
@@ -74,8 +182,7 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
 
   const handleDeleteProvider = () => {
     if (provider.builtin) return;
-    if (!confirm(`确认删除 ${provider.name}？`)) return;
-    void deleteProvider(provider.id);
+    setConfirmDelete(true);
   };
 
   const previewURL = buildPreviewURL(baseURL, provider.kind);
@@ -84,10 +191,40 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`确认删除 ${provider.name}？`}
+          onConfirm={() => { setConfirmDelete(false); void deleteProvider(provider.id); }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
       <header className="flex items-center justify-between border-b border-black/5 pl-8 pr-14 py-5">
         <div className="flex items-center gap-2 text-base font-medium text-ink">
-          <span>{provider.name}</span>
-          <ExternalIcon />
+          {editingName ? (
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitName();
+                if (e.key === 'Escape') { setNameValue(provider.name); setEditingName(false); }
+              }}
+              className="h-7 rounded border border-accent/40 bg-transparent px-2 text-base font-medium text-ink focus:outline-none"
+            />
+          ) : (
+            <span>{provider.name}</span>
+          )}
+          <button
+            type="button"
+            onClick={() => setEditingName(true)}
+            className="text-ink-subtle transition-colors hover:text-ink"
+            title="编辑名称"
+          >
+            <EditIcon />
+          </button>
         </div>
         <Toggle checked={enabled} onChange={persistEnabled} />
       </header>
@@ -95,15 +232,6 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <Section
           title="API 密钥"
-          extra={
-            <button
-              type="button"
-              className="text-ink-subtle hover:text-ink"
-              title="高级设置"
-            >
-              <SettingsSmallIcon />
-            </button>
-          }
         >
           <div className="flex items-stretch gap-2">
             <div className="flex flex-1 items-center rounded-md border border-black/10 bg-surface focus-within:border-accent/40">
@@ -126,10 +254,12 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
             </div>
             <button
               type="button"
-              className="h-9 rounded-md border border-black/10 px-4 text-sm text-ink-muted transition-colors hover:border-accent/40 hover:text-ink"
+              onClick={handleDetect}
+              disabled={detecting}
+              className="h-9 rounded-md border border-black/10 px-4 text-sm text-ink-muted transition-colors hover:border-accent/40 hover:text-ink disabled:opacity-50"
               title="检测"
             >
-              检测
+              {detecting ? '检测中...' : '检测'}
             </button>
           </div>
           <div className="mt-1.5 flex items-center justify-between text-xs">
@@ -143,15 +273,6 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
         <Section
           title="API 地址"
           titleSuffix={<HelpIcon />}
-          extra={
-            <button
-              type="button"
-              className="text-ink-subtle hover:text-ink"
-              title="高级设置"
-            >
-              <SettingsSmallIcon />
-            </button>
-          }
         >
           <div className="flex items-stretch gap-2">
             <input
@@ -288,7 +409,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       className={
         'relative inline-flex h-5 w-9 items-center rounded-full transition-colors ' +
-        (checked ? 'bg-emerald-500' : 'bg-black/15')
+        (checked ? 'bg-accent' : 'bg-black/15')
       }
     >
       <span
@@ -389,11 +510,18 @@ function EyeOffIcon() {
   );
 }
 
-function ExternalIcon() {
+function EditIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 2H2v8h8V8" />
-      <path d="M7 2h3v3M5 7l5-5" />
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2l2 2L4 11H2V9L9 2z" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <path d="M2 2l8 8M10 2l-8 8" />
     </svg>
   );
 }
@@ -403,15 +531,6 @@ function HelpIcon() {
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="6" cy="6" r="4.5" />
       <path d="M4.8 4.8a1.2 1.2 0 012.4.2c0 .8-1 1-1 1.8M6 8.5v.1" />
-    </svg>
-  );
-}
-
-function SettingsSmallIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 1v2M7 11v2M1 7h2M11 7h2M3 3l1.5 1.5M9.5 9.5L11 11M3 11l1.5-1.5M9.5 4.5L11 3" />
-      <circle cx="7" cy="7" r="2" />
     </svg>
   );
 }

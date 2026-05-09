@@ -1,13 +1,24 @@
 export interface Translations {
+  titleBar: {
+    menu: string;
+    toggleSidebar: string;
+    search: string;
+    back: string;
+    forward: string;
+    minimize: string;
+    maximize: string;
+    restore: string;
+    close: string;
+  };
   nav: {
     providers: string;
     defaultModel: string;
+    general: string;
     knowledge: string;
-    selection: string;
-    shortcuts: string;
     skills: string;
     mcp: string;
-    general: string;
+    shortcuts: string;
+    selection: string;
   };
   general: {
     sectionGeneral: string;
@@ -51,18 +62,40 @@ export interface Translations {
     on: string;
     off: string;
   };
+  menu: {
+    file: string;
+    edit: string;
+    view: string;
+    help: string;
+    newConversation: string;
+    settings: string;
+    closeWindow: string;
+    exit: string;
+    empty: string;
+  };
 }
 
 const zhCN: Translations = {
+  titleBar: {
+    menu: '菜单',
+    toggleSidebar: '切换侧边栏',
+    search: '搜索',
+    back: '后退',
+    forward: '前进',
+    minimize: '最小化',
+    maximize: '最大化',
+    restore: '还原',
+    close: '关闭',
+  },
   nav: {
     providers: '模型服务',
     defaultModel: '默认模型',
+    general: '常用配置',
     knowledge: '知识库',
-    selection: '划词助手',
-    shortcuts: '快捷键',
     skills: 'Skill',
     mcp: 'MCP',
-    general: '通用',
+    shortcuts: '快捷键',
+    selection: '划词助手',
   },
   general: {
     sectionGeneral: '常规设置',
@@ -105,6 +138,17 @@ const zhCN: Translations = {
     expand: '展开菜单',
     on: '开',
     off: '关',
+  },
+  menu: {
+    file: '文件',
+    edit: '编辑',
+    view: '查看',
+    help: '帮助',
+    newConversation: '新建对话',
+    settings: '设置...',
+    closeWindow: '关闭窗口',
+    exit: '退出',
+    empty: '暂无条目',
   },
 };
 

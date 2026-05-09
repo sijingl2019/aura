@@ -51,11 +51,23 @@
       {
         "from": "src/assets/images/tray.png",
         "to": "assets/tray.png"
+      },
+      {
+        "from": "skills",
+        "to": "skills"
       }
+    ],
+    "asarUnpack": [
+      "**/*.node"
     ],
     "win": {
       "target": "nsis",
       "icon": "src/assets/images/logo.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true
     },
     "mac": {
       "target": "dmg",

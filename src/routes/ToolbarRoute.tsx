@@ -41,9 +41,7 @@ export function ToolbarRoute() {
 
   if (!params) return null;
 
-  const enabledActions = [...params.actions]
-    .filter((a) => a.enabled)
-    .sort((a, b) => a.order - b.order);
+  const sortedActions = [...params.actions].sort((a, b) => a.order - b.order);
 
   const handleAction = async (actionId: SelectionActionId) => {
     if (actionId === 'copy') {
@@ -61,12 +59,13 @@ export function ToolbarRoute() {
       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent">
         <span className="text-[10px] font-bold text-white leading-none">Q</span>
       </div>
-      {enabledActions.map((action) => (
+      {sortedActions.map((action) => (
         <ToolbarButton
           key={action.id}
           action={action}
           compact={params.compact}
           copied={action.id === 'copy' && copied}
+          disabled={!action.enabled}
           onClick={() => void handleAction(action.id)}
         />
       ))}
@@ -78,24 +77,29 @@ function ToolbarButton({
   action,
   compact,
   copied,
+  disabled,
   onClick,
 }: {
   action: SelectionAction;
   compact: boolean;
   copied: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-1 rounded-full px-2 py-1 text-[12px] transition-colors hover:bg-gray-100 ${
-        copied ? 'text-green-600' : 'text-gray-700'
+      disabled={disabled}
+      className={`flex items-center gap-1 rounded-full px-2 py-1 text-[12px] transition-colors ${
+        disabled
+          ? 'text-gray-300 cursor-not-allowed'
+          : `hover:bg-gray-100 ${copied ? 'text-green-600' : 'text-gray-700'}`
       }`}
       title={action.label}
     >
       <ActionIcon id={action.id} copied={copied} />
-      {!compact && <span className="whitespace-nowrap">{copied ? '已复制' : action.label}</span>}
+      {!compact && <span className="whitespace-nowrap">{copied && !disabled ? '已复制' : action.label}</span>}
     </button>
   );
 }

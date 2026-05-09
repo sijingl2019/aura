@@ -33,7 +33,7 @@ function parseFrontmatter(raw: string): ParsedFrontmatter {
   return { data, body };
 }
 
-async function loadFromDir(dir: string): Promise<Skill[]> {
+async function loadFromDir(dir: string, isBuiltin: boolean = false): Promise<Skill[]> {
   const out: Skill[] = [];
   let entries: Array<import('node:fs').Dirent>;
   try {
@@ -60,6 +60,8 @@ async function loadFromDir(dir: string): Promise<Skill[]> {
         description,
         body: body.trim(),
         dir: skillDir,
+        icon: data.icon?.trim(),
+        isBuiltin,
       });
     } catch {
       /* no SKILL.md — skip */
@@ -68,11 +70,17 @@ async function loadFromDir(dir: string): Promise<Skill[]> {
   return out;
 }
 
-export async function loadSkills(dirs: string[]): Promise<Skill[]> {
+export async function loadSkills(dirs: string[], builtinDirs: string[] = []): Promise<Skill[]> {
   const seen = new Map<string, Skill>();
-  for (const dir of dirs) {
-    const list = await loadFromDir(dir);
+  // Load builtin skills first
+  for (const dir of builtinDirs) {
+    const list = await loadFromDir(dir, true);
     for (const s of list) if (!seen.has(s.id)) seen.set(s.id, s);
+  }
+  // Load user skills (can override builtins)
+  for (const dir of dirs) {
+    const list = await loadFromDir(dir, false);
+    for (const s of list) seen.set(s.id, s);
   }
   return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -80,10 +88,10 @@ export async function loadSkills(dirs: string[]): Promise<Skill[]> {
 export class SkillStore {
   private skills: Skill[] = [];
 
-  constructor(private dirs: string[]) {}
+  constructor(private dirs: string[], private builtinDirs: string[] = []) {}
 
   async reload(): Promise<void> {
-    this.skills = await loadSkills(this.dirs);
+    this.skills = await loadSkills(this.dirs, this.builtinDirs);
   }
 
   list(): Skill[] {
