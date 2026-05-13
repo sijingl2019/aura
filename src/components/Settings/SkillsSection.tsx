@@ -1,5 +1,6 @@
 import type { SkillListItem } from '@shared/types';
 import { useEffect, useState } from 'react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 // ── Static skill catalogue ────────────────────────────────────────────────────
 
@@ -251,6 +252,7 @@ export function SkillsSection() {
   } | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [catalogueSearch, setCatalogueSearch] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     loadSkills();
@@ -293,13 +295,18 @@ export function SkillsSection() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`确定要删除 Skill「${name}」吗？`)) return;
+    setPendingDelete({ id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
     try {
-      await window.api.skills.delete({ id });
+      await window.api.skills.delete({ id: pendingDelete.id });
       await loadSkills();
     } catch (err) {
       setError((err as Error).message);
     }
+    setPendingDelete(null);
   };
 
   const handleSave = async (data: { name: string; description: string; body: string }) => {
@@ -447,6 +454,15 @@ export function SkillsSection() {
             setEditTarget(null);
           }}
           isNew={!editTarget || !installedIds.has(editTarget.id)}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="删除 Skill"
+          message={`确定要删除 Skill「${pendingDelete.name}」吗？`}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
     </div>

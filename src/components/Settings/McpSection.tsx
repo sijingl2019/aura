@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { McpMarketItem, McpServerConfig } from '@shared/types';
 import { useSettingsStore } from '@/stores/settings';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 // ── Static marketplace catalogue ─────────────────────────────────────────────
 
@@ -264,6 +265,7 @@ export function McpSection() {
   const [editTarget, setEditTarget] = useState<McpServerConfig | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [marketSearch, setMarketSearch] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   const userServers = mcpServers.filter((s) => !s.builtin);
 
@@ -283,8 +285,13 @@ export function McpSection() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`确定删除 MCP 服务「${name}」吗？`)) return;
-    await deleteMcpServer(id);
+    setPendingDelete({ id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    await deleteMcpServer(pendingDelete.id);
+    setPendingDelete(null);
   };
 
   const handleInstall = (item: McpMarketItem) => {
@@ -421,6 +428,15 @@ export function McpSection() {
           initial={editTarget}
           onSave={handleSave}
           onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="删除 MCP 服务"
+          message={`确定删除 MCP 服务「${pendingDelete.name}」吗？`}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
     </div>
