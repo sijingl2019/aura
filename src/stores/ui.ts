@@ -3,6 +3,8 @@ import { create } from 'zustand';
 export type SettingsSection = 'providers' | 'default-model' | 'fallback' | 'knowledge' | 'selection' | 'shortcuts' | 'skills' | 'mcp' | 'general';
 
 interface UiState {
+  chatWideMode: boolean;
+  toggleChatWideMode: () => void;
   settingsOpen: boolean;
   settingsSection: SettingsSection;
   openSettings: (section?: SettingsSection) => void;
@@ -13,6 +15,8 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
+  chatWideMode: false,
+  toggleChatWideMode: () => set((state) => ({ chatWideMode: !state.chatWideMode })),
   settingsOpen: false,
   settingsSection: 'providers',
   openSettings: (section = 'providers') => set({ settingsOpen: true, settingsSection: section }),
