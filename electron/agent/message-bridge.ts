@@ -12,15 +12,22 @@ import type { ChatMessage } from '@shared/types';
  */
 export function chatMessagesToAgent(messages: ChatMessage[]): any[] {
   const out: any[] = [];
-  let pendingToolResults: any[] = [];
+  let pendingToolResults: { toolCallId: string; content: any[]; isError: boolean }[] = [];
+  let lastAssistantToolCalls: ChatMessage['toolCalls'] = undefined;
 
   const flushToolResults = (timestamp: number) => {
     if (pendingToolResults.length === 0) return;
-    out.push({
-      role: 'toolResult',
-      content: pendingToolResults,
-      timestamp,
-    });
+    for (const tr of pendingToolResults) {
+      const toolName = lastAssistantToolCalls?.find((tc) => tc.id === tr.toolCallId)?.name ?? '';
+      out.push({
+        role: 'toolResult',
+        toolCallId: tr.toolCallId,
+        toolName,
+        content: tr.content,
+        isError: tr.isError,
+        timestamp,
+      });
+    }
     pendingToolResults = [];
   };
 
@@ -29,7 +36,6 @@ export function chatMessagesToAgent(messages: ChatMessage[]): any[] {
 
     if (m.role === 'tool') {
       pendingToolResults.push({
-        type: 'toolResult',
         toolCallId: m.toolCallId ?? '',
         content: [{ type: 'text', text: m.content }],
         isError: false,
@@ -47,6 +53,7 @@ export function chatMessagesToAgent(messages: ChatMessage[]): any[] {
         timestamp: m.createdAt,
       });
     } else if (m.role === 'assistant') {
+      lastAssistantToolCalls = m.toolCalls;
       const content: any[] = [];
       if (m.content) {
         content.push({ type: 'text', text: m.content });

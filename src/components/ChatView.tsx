@@ -9,11 +9,33 @@ interface ChatViewProps {
   conversationId: string;
 }
 
+interface ChatScrollKeyInput {
+  displayedMessageCount: number;
+  streamingText: string;
+  streamingToolCallCount: number;
+  hasVisibleStreamingPlaceholder: boolean;
+}
+
+export function getChatScrollKey({
+  displayedMessageCount,
+  streamingText,
+  streamingToolCallCount,
+  hasVisibleStreamingPlaceholder,
+}: ChatScrollKeyInput) {
+  return [
+    displayedMessageCount,
+    streamingText,
+    streamingToolCallCount,
+    hasVisibleStreamingPlaceholder ? 'placeholder' : 'content',
+  ].join(':');
+}
+
 export function ChatView({ conversationId }: ChatViewProps) {
   const messages = useConversationsStore((s) => s.messages[conversationId] ?? []);
   const loadMessages = useConversationsStore((s) => s.loadMessages);
   const conversation = useConversationsStore((s) => s.list.find((c) => c.id === conversationId));
   const streaming = useStreamingStore();
+  const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const providers = useSettingsStore((s) => s.providers);
@@ -31,10 +53,6 @@ export function ChatView({ conversationId }: ChatViewProps) {
   useEffect(() => {
     loadMessages(conversationId);
   }, [conversationId, loadMessages]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length, streaming.text, streaming.toolCalls.length]);
 
   const isActiveStream =
     streaming.streamId !== null && streaming.conversationId === conversationId;
@@ -80,8 +98,25 @@ export function ChatView({ conversationId }: ChatViewProps) {
     return [...filtered, streamingMsg];
   }, [isActiveStream, messages, streaming.text, streaming.toolCalls, conversationId]);
 
+  const hasVisibleStreamingPlaceholder =
+    isActiveStream && !streaming.text && streaming.toolCalls.length === 0;
+
+  const scrollKey = getChatScrollKey({
+    displayedMessageCount: displayed.length,
+    streamingText: streaming.text,
+    streamingToolCallCount: streaming.toolCalls.length,
+    hasVisibleStreamingPlaceholder,
+  });
+
+  useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [scrollKey]);
+
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6">
+    <div ref={containerRef} className="flex-1 overflow-y-auto px-6 py-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
         {displayed.length === 0 && (
           <div className="mt-12 text-center text-ink-muted">
@@ -91,12 +126,15 @@ export function ChatView({ conversationId }: ChatViewProps) {
             <p className="mt-2 text-sm">在下方输入消息开始对话。</p>
           </div>
         )}
-        {displayed.map((m) => {
+        {displayed.map((m, i) => {
           const isStreamingThis = isActiveStream && m.id === '__streaming__';
+          const prev = i > 0 ? displayed[i - 1] : null;
+          const showAvatar = m.role !== 'assistant' || prev?.role !== 'assistant';
           return (
             <MessageBubble
               key={m.id}
               message={m}
+              showAvatar={showAvatar}
               streamingToolCalls={isStreamingThis ? streaming.toolCalls : undefined}
               isStreaming={isStreamingThis}
               toolResultsMap={isStreamingThis ? undefined : toolResultsMap}

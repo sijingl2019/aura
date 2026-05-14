@@ -2,6 +2,7 @@ import type {
   AppSettings,
   DefaultModelRef,
   DifyKnowledgeConfig,
+  FallbackChainEntry,
   GeneralConfig,
   McpServerConfig,
   ProviderConfig,
@@ -92,6 +93,7 @@ function mergeBuiltins(settings: AppSettings): AppSettings {
   return {
     providers,
     defaultModel: settings.defaultModel,
+    fallbackChain: settings.fallbackChain,
     difyKnowledge: settings.difyKnowledge,
     selectionToolbar: { ...DEFAULT_SELECTION_TOOLBAR, ...(settings.selectionToolbar ?? {}) },
     shortcutsOverrides: settings.shortcutsOverrides,
@@ -245,6 +247,13 @@ export function deleteMcpServer(id: string): AppSettings {
   const target = current.mcpServers.find((s) => s.id === id);
   if (!target || target.builtin) return current;
   current.mcpServers = current.mcpServers.filter((s) => s.id !== id);
+  save(current);
+  return current;
+}
+
+export function setFallbackChain(chain: FallbackChainEntry[]): AppSettings {
+  const current = load();
+  current.fallbackChain = chain;
   save(current);
   return current;
 }

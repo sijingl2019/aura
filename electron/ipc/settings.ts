@@ -2,6 +2,7 @@ import type {
   DefaultModelRef,
   DifyKnowledge,
   DifyKnowledgeConfig,
+  FallbackChainEntry,
   GeneralConfig,
   McpServerConfig,
   ProviderConfigInput,
@@ -19,6 +20,7 @@ import {
   resetShortcut,
   setDefaultModel,
   setDifyKnowledge,
+  setFallbackChain,
   setGeneralConfig,
   setSelectionToolbar,
   setShortcutOverride,
@@ -49,6 +51,11 @@ export function registerSettingsIpc(callbacks?: SettingsIpcCallbacks): void {
 
   ipcMain.handle('settings:reorderProviders', (_e, params: { ids: string[] }) =>
     reorderProviders(params.ids),
+  );
+
+  ipcMain.handle(
+    'settings:setFallbackChain',
+    (_e, params: { chain: FallbackChainEntry[] }) => setFallbackChain(params.chain),
   );
 
   ipcMain.handle('settings:setDifyKnowledge', (_e, params: DifyKnowledgeConfig | null) =>

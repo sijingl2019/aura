@@ -6,6 +6,7 @@ import { ProviderIcon } from '@/components/Settings/ProviderIcon';
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  showAvatar?: boolean;
   streamingToolCalls?: StreamingToolCall[];
   isStreaming?: boolean;
   toolResultsMap?: Map<string, string>;
@@ -32,10 +33,10 @@ function UserAvatar({ avatar }: { avatar?: string }) {
   );
 }
 
-export function MessageBubble({ message, streamingToolCalls, isStreaming, toolResultsMap, providerInfo, userAvatar }: MessageBubbleProps) {
+export function MessageBubble({ message, showAvatar = true, streamingToolCalls, isStreaming, toolResultsMap, providerInfo, userAvatar }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
-      <div className="flex items-end justify-end gap-2">
+      <div className="flex items-start justify-end gap-2">
         <div className="max-w-[80%] rounded-2xl bg-surface-muted px-4 py-2 text-sm text-ink">
           {message.skillName && (
             <div className="mb-1.5">
@@ -59,15 +60,19 @@ export function MessageBubble({ message, streamingToolCalls, isStreaming, toolRe
   if (message.role === 'assistant') {
     const toolCalls = streamingToolCalls ?? message.toolCalls;
     return (
-      <div className="flex items-end justify-start gap-2">
-        {providerInfo ? (
-          <div className="shrink-0">
-            <ProviderIcon provider={providerInfo} size={32} />
-          </div>
+      <div className="flex items-start justify-start gap-2">
+        {showAvatar ? (
+          providerInfo ? (
+            <div className="shrink-0">
+              <ProviderIcon provider={providerInfo} size={32} />
+            </div>
+          ) : (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-xs text-ink-subtle">
+              AI
+            </div>
+          )
         ) : (
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-xs text-ink-subtle">
-            AI
-          </div>
+          <div className="w-8 shrink-0" />
         )}
         <div className="flex max-w-[85%] flex-col gap-2 text-sm text-ink">
           {message.content && (

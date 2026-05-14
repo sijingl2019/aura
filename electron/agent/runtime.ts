@@ -5,15 +5,17 @@ import { Agent } from '@mariozechner/pi-agent-core';
 import type { AgentEvent } from '@mariozechner/pi-agent-core';
 import { streamSimple } from '@mariozechner/pi-ai';
 import type { WebContents } from 'electron';
-import type { ProviderConfig, StreamEvent } from '@shared/types';
+import type { FallbackChainEntry, ProviderConfig, StreamEvent } from '@shared/types';
 import { appendMessage, listMessages, renameConversation } from '../db/repo';
 import { listTools } from '../tools/registry';
 import { toPiModel } from '../providers/to-pi-model';
 import { toAgentTool } from '../tools/to-agent-tool';
 import { chatMessagesToAgent } from './message-bridge';
 import { compressHistoryIfNeeded } from './context-compressor';
+import { classifyError, isRetryableWithFallback } from './error-classifier';
 import { buildMemorySection } from '../memory/prompt';
 import { AGENT_LIMITS } from '../config/hardcoded';
+import { getSettings, resolveProvider } from '../config/store';
 import type { SkillStore } from '../skills/loader';
 
 const AT_REF_RE = /@([\w./\\-]+)/g;
@@ -63,8 +65,32 @@ function expandAtReferences(text: string, cwd: string): string {
 function makeStreamFn(baseUrl: string) {
   const isNativeAnthropic = baseUrl.includes('api.anthropic.com');
   if (isNativeAnthropic) return undefined; // use pi-ai default behaviour
-  return (model: Parameters<typeof streamSimple>[0], context: Parameters<typeof streamSimple>[1], options?: Parameters<typeof streamSimple>[2]) =>
-    streamSimple(model, context, { ...options, cacheRetention: 'none' });
+  return (
+    model: Parameters<typeof streamSimple>[0],
+    context: Parameters<typeof streamSimple>[1],
+    options?: Parameters<typeof streamSimple>[2],
+  ) => streamSimple(model, context, { ...options, cacheRetention: 'none' });
+}
+
+interface ChainEntry {
+  cfg: ProviderConfig;
+  mid: string;
+}
+
+/** Build the ordered list of providers to try: primary first, then validated fallbacks. */
+function buildProviderChain(
+  primary: ProviderConfig,
+  primaryModelId: string,
+  fallbacks: FallbackChainEntry[],
+): ChainEntry[] {
+  const chain: ChainEntry[] = [{ cfg: primary, mid: primaryModelId }];
+  for (const fb of fallbacks) {
+    const cfg = resolveProvider(fb.providerId);
+    if (!cfg || !cfg.enabled || !cfg.apiKey.trim()) continue;
+    if (!cfg.models.some((m) => m.id === fb.modelId)) continue;
+    chain.push({ cfg, mid: fb.modelId });
+  }
+  return chain;
 }
 
 interface RunParams {
@@ -87,7 +113,18 @@ export function abortRun(streamId: string): void {
 }
 
 export async function run(params: RunParams): Promise<void> {
-  const { streamId, conversationId, userText, skillId, skillName, cwd, providerCfg, modelId, skills, webContents } = params;
+  const {
+    streamId,
+    conversationId,
+    userText,
+    skillId,
+    skillName,
+    cwd,
+    providerCfg,
+    modelId,
+    skills,
+    webContents,
+  } = params;
 
   const send = (event: StreamEvent) => {
     if (!webContents.isDestroyed()) webContents.send('llm:event', event);
@@ -122,29 +159,26 @@ export async function run(params: RunParams): Promise<void> {
     AGENT_LIMITS.contextCompressThreshold,
   );
   if (compressed) {
-    console.log(
-      `[context-compressor] ${history.length} → ${workingHistory.length} messages`,
-    );
+    console.log(`[context-compressor] ${history.length} → ${workingHistory.length} messages`);
   }
 
-  const model = toPiModel(providerCfg, modelId);
   const agentTools = listTools().map((t) => toAgentTool(t, cwd));
   // Pass history captured BEFORE the new user message — agent.prompt() adds it
   const existingMessages = chatMessagesToAgent(workingHistory);
 
-  const agent = new Agent({
-    initialState: {
-      systemPrompt,
-      model,
-      tools: agentTools,
-      messages: existingMessages,
-    },
-    toolExecution: 'parallel',
-    getApiKey: async () => providerCfg.apiKey,
-    streamFn: makeStreamFn(providerCfg.baseURL),
-  });
+  // Build provider chain: primary + configured fallbacks
+  const chain = buildProviderChain(
+    providerCfg,
+    modelId,
+    getSettings().fallbackChain ?? [],
+  );
 
-  activeAgents.set(streamId, agent);
+  // Prompt text (with @file expansion) is identical across all fallback attempts
+  const promptText = expandAtReferences(userText, cwd);
+
+  // contentSent tracks whether any streaming output has been delivered to the renderer.
+  // Once content is in flight we cannot transparently retry with a different provider.
+  let contentSent = false;
 
   let doneSent = false;
   const safeSendDone = () => {
@@ -154,101 +188,149 @@ export async function run(params: RunParams): Promise<void> {
     }
   };
 
-  const unsubscribe = agent.subscribe((event: AgentEvent) => {
-    switch (event.type) {
-      case 'message_update': {
-        const ae = event.assistantMessageEvent;
-        if (ae.type === 'text_delta') {
-          send({ type: 'text', streamId, delta: ae.delta });
-        } else if (ae.type === 'toolcall_start') {
-          const block = ae.partial.content[ae.contentIndex] as any;
-          if (block?.type === 'toolCall') {
-            send({ type: 'tool_call_start', streamId, id: block.id, name: block.name });
+  let lastErrorMsg: string | null = null;
+
+  for (let attempt = 0; attempt < chain.length; attempt++) {
+    const { cfg: attemptCfg, mid: attemptModelId } = chain[attempt];
+
+    if (attempt > 0) {
+      console.log(
+        `[fallback] attempt ${attempt + 1}/${chain.length}: ${attemptCfg.name} / ${attemptModelId}`,
+      );
+    }
+
+    const model = toPiModel(attemptCfg, attemptModelId);
+    const agent = new Agent({
+      initialState: {
+        systemPrompt,
+        model,
+        tools: agentTools,
+        messages: existingMessages,
+      },
+      toolExecution: 'parallel',
+      getApiKey: async () => attemptCfg.apiKey,
+      streamFn: makeStreamFn(attemptCfg.baseURL),
+    });
+
+    activeAgents.set(streamId, agent);
+
+    const unsubscribe = agent.subscribe((event: AgentEvent) => {
+      switch (event.type) {
+        case 'message_update': {
+          const ae = event.assistantMessageEvent;
+          if (ae.type === 'text_delta') {
+            contentSent = true;
+            send({ type: 'text', streamId, delta: ae.delta });
+          } else if (ae.type === 'toolcall_start') {
+            const block = ae.partial.content[ae.contentIndex] as any;
+            if (block?.type === 'toolCall') {
+              contentSent = true;
+              send({ type: 'tool_call_start', streamId, id: block.id, name: block.name });
+            }
+          } else if (ae.type === 'toolcall_delta') {
+            const block = ae.partial.content[ae.contentIndex] as any;
+            if (block?.type === 'toolCall') {
+              send({ type: 'tool_call_args', streamId, id: block.id, delta: ae.delta });
+            }
+          } else if (ae.type === 'toolcall_end') {
+            send({ type: 'tool_call_end', streamId, id: ae.toolCall.id });
           }
-        } else if (ae.type === 'toolcall_delta') {
-          const block = ae.partial.content[ae.contentIndex] as any;
-          if (block?.type === 'toolCall') {
-            send({ type: 'tool_call_args', streamId, id: block.id, delta: ae.delta });
-          }
-        } else if (ae.type === 'toolcall_end') {
-          send({ type: 'tool_call_end', streamId, id: ae.toolCall.id });
+          break;
         }
-        break;
-      }
 
-      case 'tool_execution_end': {
-        const resultText = ((event.result?.content ?? []) as any[])
-          .filter((c) => c.type === 'text')
-          .map((c) => c.text as string)
-          .join('');
-        send({
-          type: 'tool_result',
-          streamId,
-          id: event.toolCallId,
-          ok: !event.isError,
-          preview: resultText.slice(0, 200),
-        });
-        break;
-      }
-
-      case 'turn_end': {
-        // Persist assistant message
-        const msg = event.message as any;
-        if (msg.role === 'assistant') {
-          const textContent = ((msg.content ?? []) as any[])
+        case 'tool_execution_end': {
+          contentSent = true;
+          const resultText = ((event.result?.content ?? []) as any[])
             .filter((c) => c.type === 'text')
             .map((c) => c.text as string)
             .join('');
-          const toolCalls = ((msg.content ?? []) as any[])
-            .filter((c) => c.type === 'toolCall')
-            .map((c) => ({ id: c.id, name: c.name, arguments: JSON.stringify(c.arguments) }));
-          appendMessage({
-            conversationId,
-            role: 'assistant',
-            content: textContent,
-            toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-            model: modelId,
-            inputTokens: msg.usage?.input,
-            outputTokens: msg.usage?.output,
+          send({
+            type: 'tool_result',
+            streamId,
+            id: event.toolCallId,
+            ok: !event.isError,
+            preview: resultText.slice(0, 200),
           });
+          break;
         }
 
-        // Persist tool results — each entry is a ToolResultMessage with its own toolCallId
-        for (const tr of event.toolResults) {
-          const trMsg = tr as unknown as { toolCallId: string; content: { type: string; text: string }[] };
-          const content = (trMsg.content ?? [])
-            .filter((c) => c.type === 'text')
-            .map((c) => c.text)
-            .join('');
-          appendMessage({
-            conversationId,
-            role: 'tool',
-            content,
-            toolCallId: trMsg.toolCallId,
-          });
+        case 'turn_end': {
+          // Persist assistant message
+          const msg = event.message as any;
+          if (msg.role === 'assistant') {
+            const textContent = ((msg.content ?? []) as any[])
+              .filter((c) => c.type === 'text')
+              .map((c) => c.text as string)
+              .join('');
+            const toolCalls = ((msg.content ?? []) as any[])
+              .filter((c) => c.type === 'toolCall')
+              .map((c) => ({ id: c.id, name: c.name, arguments: JSON.stringify(c.arguments) }));
+            appendMessage({
+              conversationId,
+              role: 'assistant',
+              content: textContent,
+              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+              model: attemptModelId,
+              inputTokens: msg.usage?.input,
+              outputTokens: msg.usage?.output,
+            });
+          }
+
+          // Persist tool results
+          for (const tr of event.toolResults) {
+            const trMsg = tr as unknown as {
+              toolCallId: string;
+              content: { type: string; text: string }[];
+            };
+            const content = (trMsg.content ?? [])
+              .filter((c) => c.type === 'text')
+              .map((c) => c.text)
+              .join('');
+            appendMessage({
+              conversationId,
+              role: 'tool',
+              content,
+              toolCallId: trMsg.toolCallId,
+            });
+          }
+          break;
         }
+
+        case 'agent_end':
+          safeSendDone();
+          break;
+      }
+    });
+
+    try {
+      await agent.prompt({ role: 'user', content: promptText, timestamp: Date.now() });
+      lastErrorMsg = null;
+      break; // success — exit retry loop
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      const kind = classifyError(e);
+      const hasMore = attempt < chain.length - 1;
+
+      if (isRetryableWithFallback(kind) && hasMore && !contentSent) {
+        console.log(
+          `[fallback] ${attemptCfg.name}/${attemptModelId} failed (${kind}): ${errMsg}`,
+        );
+        lastErrorMsg = errMsg; // may be overwritten on next successful attempt
+        // do NOT break — loop continues to next provider
+      } else {
+        lastErrorMsg = errMsg;
         break;
       }
-
-      case 'agent_end':
-        safeSendDone();
-        break;
+    } finally {
+      unsubscribe();
+      activeAgents.delete(streamId);
     }
-  });
-
-  try {
-    // Expand @filepath references so the LLM receives actual file contents.
-    // The DB stores the original userText; only the prompt sent to the model is expanded.
-    const promptText = expandAtReferences(userText, cwd);
-    await agent.prompt({ role: 'user', content: promptText, timestamp: Date.now() });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    send({ type: 'error', streamId, message });
-  } finally {
-    safeSendDone();
-    unsubscribe();
-    activeAgents.delete(streamId);
   }
+
+  if (lastErrorMsg) {
+    send({ type: 'error', streamId, message: lastErrorMsg });
+  }
+  safeSendDone();
 }
 
 export function newStreamId(): string {

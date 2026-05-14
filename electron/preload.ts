@@ -7,6 +7,7 @@ import type {
   DefaultModelRef,
   DifyKnowledge,
   DifyKnowledgeConfig,
+  FallbackChainEntry,
   GeneralConfig,
   LlmStreamParams,
   McpServerConfig,
@@ -93,6 +94,8 @@ const api = {
       ipcRenderer.invoke('settings:setDefaultModel', params) as Promise<AppSettings>,
     reorderProviders: (params: { ids: string[] }) =>
       ipcRenderer.invoke('settings:reorderProviders', params) as Promise<AppSettings>,
+    setFallbackChain: (params: { chain: FallbackChainEntry[] }) =>
+      ipcRenderer.invoke('settings:setFallbackChain', params) as Promise<AppSettings>,
     setDifyKnowledge: (params: DifyKnowledgeConfig | null) =>
       ipcRenderer.invoke('settings:setDifyKnowledge', params) as Promise<AppSettings>,
     listDifyKnowledges: () =>

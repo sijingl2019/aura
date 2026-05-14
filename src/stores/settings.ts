@@ -4,6 +4,7 @@ import type {
   AppSettings,
   DefaultModelRef,
   DifyKnowledgeConfig,
+  FallbackChainEntry,
   GeneralConfig,
   McpServerConfig,
   ProviderConfig,
@@ -30,6 +31,7 @@ interface SettingsState {
   loaded: boolean;
   providers: ProviderConfig[];
   defaultModel?: DefaultModelRef;
+  fallbackChain: FallbackChainEntry[];
   difyKnowledge?: DifyKnowledgeConfig;
   selectionToolbar?: SelectionToolbarConfig;
   shortcuts: ShortcutDef[];
@@ -41,6 +43,7 @@ interface SettingsState {
   deleteProvider: (id: string) => Promise<void>;
   setDefaultModel: (ref: DefaultModelRef | null) => Promise<void>;
   reorderProviders: (ids: string[]) => Promise<void>;
+  setFallbackChain: (chain: FallbackChainEntry[]) => Promise<void>;
   setDifyKnowledge: (config: DifyKnowledgeConfig | null) => Promise<void>;
   setSelectionToolbar: (config: SelectionToolbarConfig) => Promise<void>;
   loadShortcuts: () => Promise<void>;
@@ -59,6 +62,7 @@ function apply(set: (partial: Partial<SettingsState>) => void, next: AppSettings
     loaded: true,
     providers: [...next.providers].sort((a, b) => a.order - b.order),
     defaultModel: next.defaultModel,
+    fallbackChain: next.fallbackChain ?? [],
     difyKnowledge: next.difyKnowledge,
     selectionToolbar: next.selectionToolbar,
     mcpServers: next.mcpServers ?? [],
@@ -70,6 +74,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   loaded: false,
   providers: [],
   defaultModel: undefined,
+  fallbackChain: [],
   difyKnowledge: undefined,
   selectionToolbar: undefined,
   shortcuts: [],
@@ -98,6 +103,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   reorderProviders: async (ids) => {
     const data = await window.api.settings.reorderProviders({ ids });
+    apply(set, data);
+  },
+
+  setFallbackChain: async (chain) => {
+    const data = await window.api.settings.setFallbackChain({ chain });
     apply(set, data);
   },
 

@@ -274,9 +274,15 @@ export interface McpMarketItem {
   homepage?: string;
 }
 
+export interface FallbackChainEntry {
+  providerId: string;
+  modelId: string;
+}
+
 export interface AppSettings {
   providers: ProviderConfig[];
   defaultModel?: DefaultModelRef;
+  fallbackChain?: FallbackChainEntry[];
   difyKnowledge?: DifyKnowledgeConfig;
   selectionToolbar?: SelectionToolbarConfig;
   shortcutsOverrides?: Record<string, string>;
@@ -293,6 +299,7 @@ export interface SettingsAPI {
   deleteProvider: (params: { id: string }) => Promise<AppSettings>;
   setDefaultModel: (params: DefaultModelRef | null) => Promise<AppSettings>;
   reorderProviders: (params: { ids: string[] }) => Promise<AppSettings>;
+  setFallbackChain: (params: { chain: FallbackChainEntry[] }) => Promise<AppSettings>;
   setDifyKnowledge: (params: DifyKnowledgeConfig | null) => Promise<AppSettings>;
   listDifyKnowledges: () => Promise<DifyKnowledge[]>;
   setSelectionToolbar: (params: SelectionToolbarConfig) => Promise<AppSettings>;

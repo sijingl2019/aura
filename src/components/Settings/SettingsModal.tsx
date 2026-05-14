@@ -3,6 +3,7 @@ import { useSettingsStore } from '@/stores/settings';
 import { useUiStore } from '@/stores/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { DefaultModelSection } from './DefaultModelSection';
+import { FallbackChainSection } from './FallbackChainSection';
 import { GeneralSection } from './GeneralSection';
 import { KeyboardShortcutsSection } from './KeyboardShortcutsSection';
 import { KnowledgeSection } from './KnowledgeSection';
@@ -90,6 +91,14 @@ export function SettingsModal() {
               <BubbleIcon />
             </SidebarItem>
             <SidebarItem
+              label="降级链"
+              active={section === 'fallback'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('fallback')}
+            >
+              <FallbackIcon />
+            </SidebarItem>
+            <SidebarItem
               label={t.nav.general}
               active={section === 'general'}
               collapsed={navCollapsed}
@@ -156,6 +165,7 @@ export function SettingsModal() {
           </>
         )}
         {section === 'default-model' && <DefaultModelSection />}
+        {section === 'fallback' && <FallbackChainSection />}
         {section === 'knowledge' && <KnowledgeSection />}
         {section === 'selection' && <SelectionSection />}
         {section === 'shortcuts' && <KeyboardShortcutsSection />}
@@ -321,6 +331,25 @@ function SkillIcon() {
       <path d="M6 6H3C2.45 6 2 6.45 2 7V15C2 15.55 2.45 16 3 16H15C15.55 16 16 15.55 16 15V7C16 6.45 15.55 6 15 6H12" />
       <path d="M9 10V14" />
       <path d="M7 12H11" />
+    </svg>
+  );
+}
+
+function FallbackIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 6h9a3 3 0 010 6H3" />
+      <path d="M6 3L3 6l3 3" />
+      <circle cx="14" cy="12" r="1.2" fill="currentColor" stroke="none" />
     </svg>
   );
 }
