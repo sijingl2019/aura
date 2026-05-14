@@ -17,6 +17,7 @@ interface MessageRow {
   conversation_id: string;
   role: MessageRole;
   content: string;
+  thinking: string | null;
   tool_calls: string | null;
   tool_call_id: string | null;
   created_at: number;
@@ -43,6 +44,7 @@ function mapMessage(row: MessageRow): ChatMessage {
     conversationId: row.conversation_id,
     role: row.role,
     content: row.content,
+    thinking: row.thinking ?? undefined,
     toolCalls: row.tool_calls ? (JSON.parse(row.tool_calls) as ToolCall[]) : undefined,
     toolCallId: row.tool_call_id ?? undefined,
     createdAt: row.created_at,
@@ -131,6 +133,7 @@ export interface AppendMessageInput {
   conversationId: string;
   role: MessageRole;
   content: string;
+  thinking?: string;
   toolCalls?: ToolCall[];
   toolCallId?: string;
   model?: string;
@@ -203,6 +206,7 @@ export function appendMessage(input: AppendMessageInput): ChatMessage {
     conversationId: input.conversationId,
     role: input.role,
     content: input.content,
+    thinking: input.thinking,
     toolCalls: input.toolCalls,
     toolCallId: input.toolCallId,
     createdAt: Date.now(),
@@ -213,14 +217,15 @@ export function appendMessage(input: AppendMessageInput): ChatMessage {
   };
   getDb()
     .prepare(
-      `INSERT INTO messages (id, conversation_id, role, content, tool_calls, tool_call_id, created_at, model, input_tokens, output_tokens, skill_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO messages (id, conversation_id, role, content, thinking, tool_calls, tool_call_id, created_at, model, input_tokens, output_tokens, skill_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       msg.id,
       msg.conversationId,
       msg.role,
       msg.content,
+      msg.thinking ?? null,
       msg.toolCalls ? JSON.stringify(msg.toolCalls) : null,
       msg.toolCallId ?? null,
       msg.createdAt,

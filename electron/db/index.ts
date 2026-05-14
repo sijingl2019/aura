@@ -48,6 +48,10 @@ const MIGRATIONS: Migration[] = [
     version: 3,
     sql: `ALTER TABLE messages ADD COLUMN skill_name TEXT;`,
   },
+  {
+    version: 4,
+    sql: `ALTER TABLE messages ADD COLUMN thinking TEXT;`,
+  },
 ];
 
 let db: Database.Database | null = null;

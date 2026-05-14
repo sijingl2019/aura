@@ -11,6 +11,7 @@ export interface ChatMessage {
   conversationId: string;
   role: MessageRole;
   content: string;
+  thinking?: string;
   toolCalls?: ToolCall[];
   toolCallId?: string;
   createdAt: number;
@@ -41,6 +42,7 @@ export interface Skill {
 
 export type StreamEvent =
   | { type: 'text'; streamId: string; delta: string }
+  | { type: 'thinking'; streamId: string; delta: string }
   | { type: 'tool_call_start'; streamId: string; id: string; name: string }
   | { type: 'tool_call_args'; streamId: string; id: string; delta: string }
   | { type: 'tool_call_end'; streamId: string; id: string }
@@ -245,6 +247,8 @@ export interface GeneralConfig {
   minimizeToTrayOnClose: boolean;
   // Avatar
   userAvatar?: string; // data URL (image) or single emoji/char
+  // Agent
+  enableThinking?: boolean; // request extended thinking / reasoning from models that support it
 }
 
 export type McpTransportType = 'builtin' | 'stdio' | 'sse';

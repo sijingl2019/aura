@@ -154,6 +154,19 @@ export function GeneralSection() {
               <span className="text-[11px] text-ink-subtle">{t.general.spellCheckNote}</span>
             </div>
           </Row>
+
+          <Row label="思考过程">
+            <div className="flex items-center gap-2">
+              <Toggle
+                checked={draft.enableThinking ?? false}
+                onChange={(v) => persist({ enableThinking: v })}
+                accentColor={draft.accentColor}
+              />
+              <span className="text-[11px] text-ink-subtle">
+                向支持推理的模型请求思考过程（如 DeepSeek-R1、Claude 扩展思考）。模型不支持时可能报错。
+              </span>
+            </div>
+          </Row>
         </Section>
 
         {/* ── 显示设置 ──────────────────────────────────────── */}

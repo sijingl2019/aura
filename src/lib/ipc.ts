@@ -27,6 +27,9 @@ async function handleEvent(event: StreamEvent): Promise<void> {
     case 'text':
       streaming.appendText(event.delta);
       break;
+    case 'thinking':
+      streaming.appendThinking(event.delta);
+      break;
     case 'tool_call_start':
       streaming.toolCallStart(event.id, event.name);
       break;

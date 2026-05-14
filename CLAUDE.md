@@ -25,7 +25,7 @@ Electron desktop AI chat. Renderer speaks **only** to main via `window.api.{wind
 1. Renderer `sendMessage` in [src/lib/ipc.ts](src/lib/ipc.ts) **optimistically** inserts the user bubble, then calls `window.api.llm.stream({conversationId, userText, skillId?})`.
 2. Main's `ipcMain.handle('llm:stream', ...)` in [electron/ipc/llm.ts](electron/ipc/llm.ts) generates `streamId`, fires `void run(...)` (not awaited — the **sync prefix** of `run()` includes `appendMessage(user)` before the first `await`, so by the time the IPC returns, the user row is in the DB).
 3. [electron/agent/runtime.ts](electron/agent/runtime.ts) loops up to `AGENT_LIMITS.maxToolRounds` rounds: each round reads full history via `listMessages`, calls `provider.stream({messages, tools, system, signal})`, persists the assistant row (with `toolCalls` JSON), executes every tool call, persists each tool row (`role='tool'`, `toolCallId=call.id`), repeats until `finishReason==='stop'` or no tool calls.
-4. All streaming pushes go out on the `'llm:event'` channel as `StreamEvent` (see [shared/types.ts](shared/types.ts)): `text | tool_call_start | tool_call_args | tool_call_end | tool_result | done | error`.
+4. All streaming pushes go out on the `'llm:event'` channel as `StreamEvent` (see [shared/types.ts](shared/types.ts)): `text | thinking | tool_call_start | tool_call_args | tool_call_end | tool_result | done | error`.
 5. On `done`, [src/lib/ipc.ts](src/lib/ipc.ts) does `loadMessages` + `loadList`, which replaces the optimistic user row with the real DB rows and flushes streaming state.
 
 ### Agent runtime — pi-agent-core integration
@@ -40,6 +40,22 @@ The agent runtime now delegates to [pi-agent-core](https://github.com/pi-ai/pi-a
 
 These adapters are initialized in [electron/main.ts](electron/main.ts) and the main agent loop in [electron/agent/runtime.ts](electron/agent/runtime.ts) passes them to the pi-ai Agent constructor.
 
+### Context compression
+
+[electron/agent/context-compressor.ts](electron/agent/context-compressor.ts) `compressHistoryIfNeeded()` runs in `run()` **after** the sync prefix, before the Agent is built. When the rough token estimate (`~2.5` chars/token) of the loaded history exceeds `AGENT_LIMITS.contextCompressThreshold` (default `30_000`), it keeps the first `PROTECT_HEAD` (4) and last `PROTECT_TAIL` (20) messages verbatim and replaces the middle with an LLM-generated summary (a synthetic `user` + `assistant` pair). The summary call uses the **same provider/model** as the conversation, non-streaming. Any failure falls back to the original array. The compressed result is **ephemeral** — only fed into `chatMessagesToAgent()` for this turn; the DB always keeps the full history.
+
+### Persistent memory
+
+Cross-session memory lives in `userData/memory/` as two Markdown files: `MEMORY.md` (`facts` key — project/decision info) and `USER.md` (`profile` key — user preferences). [electron/memory/store.ts](electron/memory/store.ts) is a singleton initialized in `main.ts` via `initMemoryStore()`. Three tools (`memory_read` / `memory_write` / `memory_append`, from [electron/memory/tools.ts](electron/memory/tools.ts)) are `registerTools(...)`-ed at startup so the model manages its own memory. [electron/memory/prompt.ts](electron/memory/prompt.ts) `buildMemorySection()` is pushed into `systemParts` on **every** `run()` — it always includes the usage guidance and appends file contents when non-empty.
+
+### Fallback model chain
+
+`AppSettings.fallbackChain` (`FallbackChainEntry[]`) is an ordered list of `{providerId, modelId}` tried after the primary fails. `run()` builds the chain via `buildProviderChain()` (primary + validated, enabled fallbacks) and loops attempts. [electron/agent/error-classifier.ts](electron/agent/error-classifier.ts) `classifyError()` maps errors to `rate_limit | overloaded | model_not_found | server_error | auth | other`; `isRetryableWithFallback()` is true for the first four. **A fallback is only taken if no content has been streamed yet** (`contentSent` flag, set by `text` / `thinking` / `tool_call_start` / `tool_result` events) — once partial output is in flight, the error surfaces as-is to avoid a doubled response. Configured in Settings → 降级链 (`section = 'fallback'`), IPC `settings:setFallbackChain`.
+
+### Reasoning / thinking
+
+pi-ai natively emits `thinking_start | thinking_delta | thinking_end` events and `ThinkingContent` blocks. `GeneralConfig.enableThinking` (default `false`, Settings → 常规 toggle) gates whether `run()` passes `thinkingLevel: 'medium'` vs `'off'` into the Agent's `initialState` — the agent loop omits reasoning params entirely when `'off'`. `toPiModel()` sets `reasoning: true` to advertise the capability. `thinking_delta` events stream out as `StreamEvent` `{type:'thinking'}`; `turn_end` extracts `ThinkingContent` blocks from `msg.content` and persists them in `messages.thinking` (migration v4). The renderer shows a collapsible "💭 思考过程" block in [src/components/MessageBubble.tsx](src/components/MessageBubble.tsx). Thinking is **display-only** — `message-bridge.ts` does not reconstruct `ThinkingContent` blocks for historical turns (Anthropic only requires signatures within the same turn, which pi-agent-core handles internally).
+
 ### Settings & configuration
 
 User-visible provider and model settings are stored in `app.getPath('userData')/settings.json` and managed by [electron/config/store.ts](electron/config/store.ts). On first load, `mergeBuiltins()` injects the four preset providers (MiniMax / 智谱 / 硅基流动 / 月之暗面) from [electron/config/defaults.ts](electron/config/defaults.ts) if they're absent — so builtins are always present even on a fresh install. Builtin providers carry `builtin: true` and cannot be deleted from the UI.
@@ -53,6 +69,7 @@ IPC surface (all registered in [electron/ipc/settings.ts](electron/ipc/settings.
 | `settings:deleteProvider` | remove a non-builtin provider |
 | `settings:setDefaultModel` | persist `{providerId, modelId}` as the global default (validates that the provider exists and the model is in its list) |
 | `settings:reorderProviders` | persist a new `order` array |
+| `settings:setFallbackChain` | persist the ordered `FallbackChainEntry[]`降级链 |
 
 `window.api.settings.*` mirrors all of the above via contextBridge.
 
@@ -97,13 +114,16 @@ Claude-Code-style skills: scan `userData/skills/<id>/SKILL.md` + `resourcesPath/
 - `listMessages` must `ORDER BY created_at ASC, rowid ASC`. `created_at` alone ties at millisecond granularity; `id` (UUID) tiebreaks non-deterministically and reorders assistant/tool rows written inside the same ms, which then breaks Anthropic message construction. `rowid` is guaranteed monotonic per insert.
 - Conversation title auto-renames to the first ~8 words of the first user message (see `isFirstUserMsg` branch in `runtime.ts`).
 - **System conversations** (`is_system = 1`): added in migration v2. The quick question window always writes to a single system conversation (created on-demand via `getOrCreateSystemConversation()` in [electron/db/repo.ts](electron/db/repo.ts)). `listConversations` and `searchConversations` both filter `WHERE is_system = 0` so system conversations never appear in the sidebar or search. Do not remove this filter.
+- **Migrations**: v2 added `conversations.is_system`, v3 added `messages.skill_name`, v4 added `messages.thinking` (persisted reasoning content). Bump `MIGRATIONS` in [electron/db/index.ts](electron/db/index.ts) for new columns — never edit an existing migration.
 
 ### Settings UI
 
-Settings are opened via **File → Settings…** in the app menu ([src/components/AppMenu.tsx](src/components/AppMenu.tsx)), which calls `openSettings('providers')` on [src/stores/ui.ts](src/stores/ui.ts). The modal ([src/components/Settings/SettingsModal.tsx](src/components/Settings/SettingsModal.tsx)) has a left icon rail with three tabs:
+Settings are opened via **File → Settings…** in the app menu ([src/components/AppMenu.tsx](src/components/AppMenu.tsx)), which calls `openSettings('providers')` on [src/stores/ui.ts](src/stores/ui.ts). The modal ([src/components/Settings/SettingsModal.tsx](src/components/Settings/SettingsModal.tsx)) has a left icon rail; key tabs:
 
 - **模型服务** (`section = 'providers'`): `ProviderList` (searchable, reorderable) + `ProviderDetail` (API key show/hide, base URL reset, model add/remove, delete for non-builtins). Adding a new provider goes through `AddProviderDialog` with an icon picker.
 - **默认模型** (`section = 'default-model'`): `DefaultModelSection` — a `ModelCombobox` restricted to enabled providers, with a clear button.
+- **降级链** (`section = 'fallback'`): `FallbackChainSection` — ordered list of fallback `{provider, model}` entries with add (via `ModelCombobox`) / remove. See "Fallback model chain" above.
+- **常规** (`section = 'general'`): `GeneralSection` — language, proxy, theme, tray, and the **思考过程** (`enableThinking`) toggle.
 - **快捷键** (`section = 'shortcuts'`): `KeyboardShortcutsSection` ([src/components/Settings/KeyboardShortcutsSection.tsx](src/components/Settings/KeyboardShortcutsSection.tsx)) — table of all shortcuts with click-to-record editing and per-shortcut reset. Shortcut definitions live in `DEFAULT_SHORTCUTS` in [electron/config/hardcoded.ts](electron/config/hardcoded.ts); only overrides are persisted to `settings.json` via `getShortcuts() / setShortcutOverride() / resetShortcut()` in [electron/config/store.ts](electron/config/store.ts). IPC channels: `shortcuts:get`, `shortcuts:set`, `shortcuts:reset`.
 
 `ModelCombobox` ([src/components/Settings/ModelCombobox.tsx](src/components/Settings/ModelCombobox.tsx)) is a reusable searchable grouped dropdown that accepts `size: 'sm' | 'md'`. It is used both in `DefaultModelSection` and in `ModelSwitcher`.
@@ -111,7 +131,7 @@ Settings are opened via **File → Settings…** in the app menu ([src/component
 `ModelSwitcher` ([src/components/ModelSwitcher.tsx](src/components/ModelSwitcher.tsx)) sits above the Composer textarea. Resolution: pinned conv model → pendingModel (local state before conv is created) → global default. A "跟随默认" label appears when following the global default. Picking a model on an existing conversation calls `db:updateConversationModel` and updates the store; on a new conversation the choice is held in local state in `Composer` and applied right after the conversation row is created.
 
 Renderer stores:
-- [src/stores/settings.ts](src/stores/settings.ts) — mirrors `AppSettings`; exposes `load / upsertProvider / deleteProvider / setDefaultModel / reorderProviders`.
+- [src/stores/settings.ts](src/stores/settings.ts) — mirrors `AppSettings`; exposes `load / upsertProvider / deleteProvider / setDefaultModel / reorderProviders / setFallbackChain`.
 - [src/stores/ui.ts](src/stores/ui.ts) — `settingsOpen`, `settingsSection`, `openSettings(section?)`, `closeSettings()`.
 
 ### Quick Question Window

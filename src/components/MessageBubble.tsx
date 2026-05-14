@@ -75,6 +75,9 @@ export function MessageBubble({ message, showAvatar = true, streamingToolCalls, 
           <div className="w-8 shrink-0" />
         )}
         <div className="flex max-w-[85%] flex-col gap-2 text-sm text-ink">
+          {message.thinking && (
+            <ThinkingBlock thinking={message.thinking} defaultOpen={!!isStreaming && !message.content} />
+          )}
           {message.content && (
             <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm">
               <Markdown content={message.content} />
@@ -88,7 +91,7 @@ export function MessageBubble({ message, showAvatar = true, streamingToolCalls, 
               ))}
             </div>
           )}
-          {!message.content && (!toolCalls || toolCalls.length === 0) && isStreaming && (
+          {!message.content && !message.thinking && (!toolCalls || toolCalls.length === 0) && isStreaming && (
             <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm text-ink-subtle">
               <span className="animate-pulse">思考中…</span>
             </div>
@@ -99,6 +102,28 @@ export function MessageBubble({ message, showAvatar = true, streamingToolCalls, 
   }
 
   return null;
+}
+
+function ThinkingBlock({ thinking, defaultOpen }: { thinking: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div className="rounded-xl border border-black/5 bg-surface-muted/50 px-3 py-2 text-xs">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-1.5 text-left text-ink-subtle hover:text-ink"
+      >
+        <span>💭</span>
+        <span className="font-medium">思考过程</span>
+        <span className="ml-auto text-[10px]">{open ? '收起' : '展开'}</span>
+      </button>
+      {open && (
+        <div className="mt-2 whitespace-pre-wrap border-t border-black/5 pt-2 leading-relaxed text-ink-muted">
+          {thinking}
+        </div>
+      )}
+    </div>
+  );
 }
 
 type ToolKind = 'skill' | 'mcp' | 'builtin';

@@ -9,11 +9,13 @@ interface StreamingState {
   streamId: string | null;
   conversationId: string | null;
   text: string;
+  thinking: string;
   toolCalls: StreamingToolCall[];
   error: string | null;
 
   begin: (params: { streamId: string; conversationId: string }) => void;
   appendText: (delta: string) => void;
+  appendThinking: (delta: string) => void;
   toolCallStart: (id: string, name: string) => void;
   toolCallArgs: (id: string, delta: string) => void;
   toolCallEnd: (id: string) => void;
@@ -26,13 +28,16 @@ export const useStreamingStore = create<StreamingState>((set) => ({
   streamId: null,
   conversationId: null,
   text: '',
+  thinking: '',
   toolCalls: [],
   error: null,
 
   begin: ({ streamId, conversationId }) =>
-    set({ streamId, conversationId, text: '', toolCalls: [], error: null }),
+    set({ streamId, conversationId, text: '', thinking: '', toolCalls: [], error: null }),
 
   appendText: (delta) => set((s) => ({ text: s.text + delta })),
+
+  appendThinking: (delta) => set((s) => ({ thinking: s.thinking + delta })),
 
   toolCallStart: (id, name) =>
     set((s) => ({
@@ -62,5 +67,5 @@ export const useStreamingStore = create<StreamingState>((set) => ({
   setError: (message) => set({ error: message }),
 
   reset: () =>
-    set({ streamId: null, conversationId: null, text: '', toolCalls: [], error: null }),
+    set({ streamId: null, conversationId: null, text: '', thinking: '', toolCalls: [], error: null }),
 }));

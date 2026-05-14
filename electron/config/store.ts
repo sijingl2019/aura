@@ -28,6 +28,7 @@ export const DEFAULT_GENERAL_CONFIG: GeneralConfig = {
   transparentWindow: false,
   showTrayIcon: true,
   minimizeToTrayOnClose: true,
+  enableThinking: false,
 };
 
 const FILE_NAME = 'settings.json';

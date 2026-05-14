@@ -12,7 +12,9 @@ export function toPiModel(cfg: ProviderConfig, modelId: string): any {
     api: cfg.kind === 'anthropic' ? 'anthropic-messages' : 'openai-completions',
     provider: cfg.kind === 'anthropic' ? 'anthropic' : 'openai',
     baseUrl: cfg.baseURL,
-    reasoning: false,
+    // Advertise reasoning capability; the agent only sends reasoning params
+    // when thinkingLevel !== 'off' (controlled by the enableThinking setting).
+    reasoning: true,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 131072,

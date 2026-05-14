@@ -15,7 +15,7 @@ import { compressHistoryIfNeeded } from './context-compressor';
 import { classifyError, isRetryableWithFallback } from './error-classifier';
 import { buildMemorySection } from '../memory/prompt';
 import { AGENT_LIMITS } from '../config/hardcoded';
-import { getSettings, resolveProvider } from '../config/store';
+import { getGeneralConfig, getSettings, resolveProvider } from '../config/store';
 import type { SkillStore } from '../skills/loader';
 
 const AT_REF_RE = /@([\w./\\-]+)/g;
@@ -176,6 +176,10 @@ export async function run(params: RunParams): Promise<void> {
   // Prompt text (with @file expansion) is identical across all fallback attempts
   const promptText = expandAtReferences(userText, cwd);
 
+  // Extended thinking / reasoning — opt-in via the enableThinking setting.
+  // When 'off', the agent loop omits reasoning params entirely.
+  const thinkingLevel: 'off' | 'medium' = getGeneralConfig().enableThinking ? 'medium' : 'off';
+
   // contentSent tracks whether any streaming output has been delivered to the renderer.
   // Once content is in flight we cannot transparently retry with a different provider.
   let contentSent = false;
@@ -206,6 +210,7 @@ export async function run(params: RunParams): Promise<void> {
         model,
         tools: agentTools,
         messages: existingMessages,
+        thinkingLevel,
       },
       toolExecution: 'parallel',
       getApiKey: async () => attemptCfg.apiKey,
@@ -221,6 +226,9 @@ export async function run(params: RunParams): Promise<void> {
           if (ae.type === 'text_delta') {
             contentSent = true;
             send({ type: 'text', streamId, delta: ae.delta });
+          } else if (ae.type === 'thinking_delta') {
+            contentSent = true;
+            send({ type: 'thinking', streamId, delta: ae.delta });
           } else if (ae.type === 'toolcall_start') {
             const block = ae.partial.content[ae.contentIndex] as any;
             if (block?.type === 'toolCall') {
@@ -262,6 +270,10 @@ export async function run(params: RunParams): Promise<void> {
               .filter((c) => c.type === 'text')
               .map((c) => c.text as string)
               .join('');
+            const thinkingContent = ((msg.content ?? []) as any[])
+              .filter((c) => c.type === 'thinking')
+              .map((c) => c.thinking as string)
+              .join('');
             const toolCalls = ((msg.content ?? []) as any[])
               .filter((c) => c.type === 'toolCall')
               .map((c) => ({ id: c.id, name: c.name, arguments: JSON.stringify(c.arguments) }));
@@ -269,6 +281,7 @@ export async function run(params: RunParams): Promise<void> {
               conversationId,
               role: 'assistant',
               content: textContent,
+              thinking: thinkingContent || undefined,
               toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
               model: attemptModelId,
               inputTokens: msg.usage?.input,

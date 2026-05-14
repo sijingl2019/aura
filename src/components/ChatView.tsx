@@ -32,11 +32,15 @@ export function getChatScrollKey({
 }
 
 export function getChatContentWidthClass(isWide: boolean) {
-  return isWide ? 'max-w-6xl' : 'max-w-3xl';
+  return isWide ? 'max-w-screen-2xl' : 'max-w-3xl';
 }
 
 export function getChatWidthToggleLabel(isWide: boolean) {
   return isWide ? 'Switch to narrow mode' : 'Switch to wide mode';
+}
+
+export function getChatWidthToggleButtonClass() {
+  return 'absolute right-4 top-4 z-10 inline-flex h-[22px] w-[22px] cursor-pointer items-center justify-center rounded border border-black/10 bg-surface/90 text-ink-muted shadow-sm backdrop-blur transition-colors hover:bg-surface-sunken hover:text-ink focus:outline-none focus:ring-2 focus:ring-accent/30';
 }
 
 export function ChatView({ conversationId }: ChatViewProps) {
@@ -84,7 +88,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
     const filtered = messages.filter((m) => m.role !== 'tool');
 
     if (!isActiveStream) return filtered;
-    if (!streaming.text && streaming.toolCalls.length === 0) {
+    if (!streaming.text && !streaming.thinking && streaming.toolCalls.length === 0) {
       const placeholder: ChatMessage = {
         id: '__streaming__',
         conversationId,
@@ -100,6 +104,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
       conversationId,
       role: 'assistant',
       content: streaming.text,
+      thinking: streaming.thinking || undefined,
       toolCalls: streaming.toolCalls.map((c) => ({
         id: c.id,
         name: c.name,
@@ -108,14 +113,14 @@ export function ChatView({ conversationId }: ChatViewProps) {
       createdAt: Date.now(),
     };
     return [...filtered, streamingMsg];
-  }, [isActiveStream, messages, streaming.text, streaming.toolCalls, conversationId]);
+  }, [isActiveStream, messages, streaming.text, streaming.thinking, streaming.toolCalls, conversationId]);
 
   const hasVisibleStreamingPlaceholder =
-    isActiveStream && !streaming.text && streaming.toolCalls.length === 0;
+    isActiveStream && !streaming.text && !streaming.thinking && streaming.toolCalls.length === 0;
 
   const scrollKey = getChatScrollKey({
     displayedMessageCount: displayed.length,
-    streamingText: streaming.text,
+    streamingText: streaming.text + streaming.thinking,
     streamingToolCallCount: streaming.toolCalls.length,
     hasVisibleStreamingPlaceholder,
   });
@@ -136,7 +141,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
         title={widthToggleLabel}
         aria-label={widthToggleLabel}
         onClick={toggleChatWideMode}
-        className="absolute right-4 top-4 z-10 inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-md border border-black/10 bg-surface/90 text-ink-muted shadow-sm backdrop-blur transition-colors hover:bg-surface-sunken hover:text-ink focus:outline-none focus:ring-2 focus:ring-accent/30"
+        className={getChatWidthToggleButtonClass()}
       >
         {chatWideMode ? <NarrowModeIcon /> : <WideModeIcon />}
       </button>
@@ -181,7 +186,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
 
 function WideModeIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="12" height="12" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 4H4v3" />
       <path d="M11 4h3v3" />
       <path d="M7 14H4v-3" />
@@ -196,7 +201,7 @@ function WideModeIcon() {
 
 function NarrowModeIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="12" height="12" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 7h3V4" />
       <path d="M14 7h-3V4" />
       <path d="M4 11h3v3" />
