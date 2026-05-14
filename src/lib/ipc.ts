@@ -74,6 +74,9 @@ export async function sendMessage(params: {
   convStore.replaceMessages(params.conversationId, [...current, optimistic]);
 
   const { streamId } = await window.api.llm.stream(params);
+  // User message is now persisted. Reload to fix any race with ChatView's initial loadMessages
+  // (ChatView may have loaded an empty array before llm:stream saved the user row to DB).
+  await convStore.loadMessages(params.conversationId);
   useStreamingStore.getState().begin({ streamId, conversationId: params.conversationId });
 }
 

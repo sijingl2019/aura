@@ -27,6 +27,8 @@ import { McpClientManager } from './mcp/client';
 import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
 import { SkillStore } from './skills/loader';
 import { registerTools } from './tools/registry';
+import { initMemoryStore } from './memory/store';
+import { createMemoryTools } from './memory/tools';
 import { toggleQuickQuestionWindow } from './windows/quickQuestionWindow';
 
 process.env.APP_ROOT = path.join(__dirname, '..');
@@ -229,6 +231,10 @@ const mcpManager = new McpClientManager();
 
 app.whenReady().then(async () => {
   initDb();
+
+  // Initialize persistent memory store (userData/memory/)
+  initMemoryStore(path.join(app.getPath('userData'), 'memory'));
+  registerTools(createMemoryTools());
 
   // Apply saved general config at startup
   const generalCfg = getGeneralConfig();

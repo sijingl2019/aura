@@ -11,6 +11,9 @@ import { listTools } from '../tools/registry';
 import { toPiModel } from '../providers/to-pi-model';
 import { toAgentTool } from '../tools/to-agent-tool';
 import { chatMessagesToAgent } from './message-bridge';
+import { compressHistoryIfNeeded } from './context-compressor';
+import { buildMemorySection } from '../memory/prompt';
+import { AGENT_LIMITS } from '../config/hardcoded';
 import type { SkillStore } from '../skills/loader';
 
 const AT_REF_RE = /@([\w./\\-]+)/g;
@@ -105,12 +108,29 @@ export async function run(params: RunParams): Promise<void> {
     if (skill) systemParts.push(skill.body);
   }
 
+  // Inject persistent memory context into every conversation
+  systemParts.push(buildMemorySection());
+
   const systemPrompt = systemParts.join('\n\n');
+
+  // Compress history when estimated token count exceeds threshold.
+  // The result is ephemeral — the full history remains in the DB.
+  const { messages: workingHistory, compressed } = await compressHistoryIfNeeded(
+    history,
+    providerCfg,
+    modelId,
+    AGENT_LIMITS.contextCompressThreshold,
+  );
+  if (compressed) {
+    console.log(
+      `[context-compressor] ${history.length} → ${workingHistory.length} messages`,
+    );
+  }
 
   const model = toPiModel(providerCfg, modelId);
   const agentTools = listTools().map((t) => toAgentTool(t, cwd));
   // Pass history captured BEFORE the new user message — agent.prompt() adds it
-  const existingMessages = chatMessagesToAgent(history);
+  const existingMessages = chatMessagesToAgent(workingHistory);
 
   const agent = new Agent({
     initialState: {

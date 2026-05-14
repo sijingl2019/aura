@@ -1,5 +1,8 @@
 export const AGENT_LIMITS = {
   maxToolRounds: 10,
+  // Compress conversation history when estimated token count exceeds this value.
+  // ~2.5 chars per token (mixed CJK/Latin). 30 k tokens ≈ 75 k chars.
+  contextCompressThreshold: 30_000,
 } as const;
 
 import type { ShortcutDef } from '@shared/types';

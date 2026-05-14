@@ -17,7 +17,12 @@
       "Bash(npm ls *)",
       "Bash(npm list *)",
       "Bash(cat \"$\\(npm list -p @mariozechner/pi-agent-core\\)/package.json\")",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(Get-ChildItem -Path \"E:\\\\Workspace\\\\hermes-agent\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-ChildItem -Path \"E:\\\\Workspace\\\\hermes-agent\" -Depth 1 | Select-Object Name, @{Name=\"Type\"; Expression={if\\($_.PSIsContainer\\){\"Directory\"}else{\"File\"}}} | Format-Table -AutoSize)"
     ]
   }
 }
