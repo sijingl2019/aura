@@ -26,6 +26,7 @@ import type { SkillStore } from '../skills/loader';
 import { shouldSurfaceThinking } from '@shared/thinking';
 import { buildPromptText, resolveSystemPromptSnapshot } from './system-prompt-cache';
 import { loadContextFiles } from './context-files';
+import { expandConfigByKeys } from './key-rotator';
 
 const AT_REF_RE = /@([\w./\\-]+)/g;
 const MAX_FILE_BYTES = 200_000; // 200 KB per file
@@ -92,18 +93,22 @@ interface ChainEntry {
   mid: string;
 }
 
-/** Build the ordered list of providers to try: primary first, then validated fallbacks. */
+/** Build the ordered list of providers to try: primary first, then validated fallbacks.
+ *  Providers with multiple comma-separated API keys are expanded into one entry per key
+ *  so the existing attempt loop naturally tries each key before switching provider. */
 function buildProviderChain(
   primary: ProviderConfig,
   primaryModelId: string,
   fallbacks: FallbackChainEntry[],
 ): ChainEntry[] {
-  const chain: ChainEntry[] = [{ cfg: primary, mid: primaryModelId }];
+  const chain: ChainEntry[] = expandConfigByKeys(primary).map((cfg) => ({ cfg, mid: primaryModelId }));
   for (const fb of fallbacks) {
     const cfg = resolveProvider(fb.providerId);
     if (!cfg || !cfg.enabled || !cfg.apiKey.trim()) continue;
     if (!cfg.models.some((m) => m.id === fb.modelId)) continue;
-    chain.push({ cfg, mid: fb.modelId });
+    for (const expanded of expandConfigByKeys(cfg)) {
+      chain.push({ cfg: expanded, mid: fb.modelId });
+    }
   }
   return chain;
 }
@@ -261,9 +266,17 @@ export async function run(params: RunParams): Promise<void> {
     activeModelId = attemptModelId;
 
     if (attempt > 0) {
-      console.log(
-        `[fallback] attempt ${attempt + 1}/${chain.length}: ${attemptCfg.name} / ${attemptModelId}`,
-      );
+      const prevCfg = chain[attempt - 1].cfg;
+      const isKeyRotation = prevCfg.id === attemptCfg.id;
+      if (isKeyRotation) {
+        console.log(
+          `[key-rotator] attempt ${attempt + 1}/${chain.length}: rotating to next key for ${attemptCfg.name} / ${attemptModelId}`,
+        );
+      } else {
+        console.log(
+          `[fallback] attempt ${attempt + 1}/${chain.length}: ${attemptCfg.name} / ${attemptModelId}`,
+        );
+      }
     }
 
     // Per-attempt budget + continuation state (reset for each fallback attempt)
