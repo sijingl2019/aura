@@ -149,6 +149,9 @@ export interface ProviderConfig {
   iconBg?: string;
   models: ProviderModel[];
   order: number;
+  // Enable Anthropic cache_control prompt caching. `undefined` = auto
+  // (on for the native api.anthropic.com endpoint, off elsewhere).
+  promptCaching?: boolean;
 }
 
 export interface DefaultModelRef {

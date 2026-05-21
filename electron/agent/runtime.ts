@@ -58,18 +58,24 @@ function expandAtReferences(text: string, cwd: string): string {
   return `${text}\n\n${blocks.join('\n\n')}`;
 }
 
-// MiniMax and other Anthropic-compatible third-party endpoints do not support
-// Anthropic prompt-caching headers (cache_control). Passing cacheRetention:'none'
-// tells pi-ai's anthropic provider to omit the cache_control field so these
-// endpoints don't silently drop the system prompt.
-function makeStreamFn(baseUrl: string) {
-  const isNativeAnthropic = baseUrl.includes('api.anthropic.com');
-  if (isNativeAnthropic) return undefined; // use pi-ai default behaviour
+// Whether to enable Anthropic cache_control prompt caching for this provider.
+// Explicit `promptCaching` wins; otherwise default to on only for the native
+// api.anthropic.com endpoint. MiniMax and most third-party Anthropic-compatible
+// endpoints reject cache_control, so they stay off by default.
+function effectivePromptCaching(cfg: ProviderConfig): boolean {
+  return cfg.promptCaching ?? cfg.baseURL.includes('api.anthropic.com');
+}
+
+// Build the streamFn passed to the Agent. We always wrap streamSimple so we can
+// pin cacheRetention: 'short' (caching on) or 'none' (off) while preserving the
+// reasoning/thinking options the agent loop injects.
+function makeStreamFn(cfg: ProviderConfig) {
+  const cacheRetention: 'short' | 'none' = effectivePromptCaching(cfg) ? 'short' : 'none';
   return (
     model: Parameters<typeof streamSimple>[0],
     context: Parameters<typeof streamSimple>[1],
     options?: Parameters<typeof streamSimple>[2],
-  ) => streamSimple(model, context, { ...options, cacheRetention: 'none' });
+  ) => streamSimple(model, context, { ...options, cacheRetention });
 }
 
 interface ChainEntry {
@@ -194,14 +200,28 @@ export async function run(params: RunParams): Promise<void> {
 
   let lastErrorMsg: string | null = null;
 
+  // Continuation buffer (Feature 7) — declared outside the attempt loop so a
+  // fragment buffered mid-continuation can still be flushed after the loop.
+  let pendingAssistant: { text: string; thinking: string } | null = null;
+  let activeModelId = modelId;
+
+  const maxRounds = AGENT_LIMITS.maxToolRounds;
+
   for (let attempt = 0; attempt < chain.length; attempt++) {
     const { cfg: attemptCfg, mid: attemptModelId } = chain[attempt];
+    activeModelId = attemptModelId;
 
     if (attempt > 0) {
       console.log(
         `[fallback] attempt ${attempt + 1}/${chain.length}: ${attemptCfg.name} / ${attemptModelId}`,
       );
     }
+
+    // Per-attempt budget + continuation state (reset for each fallback attempt)
+    let toolRoundsUsed = 0;
+    const warnedThresholds = new Set<number>();
+    let continuationCount = 0;
+    pendingAssistant = null;
 
     const model = toPiModel(attemptCfg, attemptModelId);
     const agent = new Agent({
@@ -214,7 +234,39 @@ export async function run(params: RunParams): Promise<void> {
       },
       toolExecution: 'parallel',
       getApiKey: async () => attemptCfg.apiKey,
-      streamFn: makeStreamFn(attemptCfg.baseURL),
+      streamFn: makeStreamFn(attemptCfg),
+      // Feature 6 — hard cap: refuse tool calls once the round budget is spent.
+      beforeToolCall: async () => {
+        if (toolRoundsUsed >= maxRounds) {
+          return {
+            block: true,
+            reason: `⚠️ 已达到工具调用上限（${maxRounds} 轮）。请勿再调用工具，直接基于已有信息给出最终回答。`,
+          };
+        }
+        return undefined;
+      },
+      // Feature 6 — soft warning: append a wrap-up notice to the tool result
+      // when round usage crosses a configured ratio (rides inside the tool
+      // result to avoid breaking user/assistant alternation).
+      afterToolCall: async (ctx) => {
+        const currentRound = toolRoundsUsed + 1;
+        for (const ratio of AGENT_LIMITS.toolBudgetWarnRatios) {
+          const threshold = Math.ceil(maxRounds * ratio);
+          if (currentRound === threshold && !warnedThresholds.has(threshold)) {
+            warnedThresholds.add(threshold);
+            return {
+              content: [
+                ...ctx.result.content,
+                {
+                  type: 'text' as const,
+                  text: `\n[系统提示：已使用 ${currentRound}/${maxRounds} 轮工具调用，请尽快收尾并给出最终答案。]`,
+                },
+              ],
+            };
+          }
+        }
+        return undefined;
+      },
     });
 
     activeAgents.set(streamId, agent);
@@ -263,7 +315,6 @@ export async function run(params: RunParams): Promise<void> {
         }
 
         case 'turn_end': {
-          // Persist assistant message
           const msg = event.message as any;
           if (msg.role === 'assistant') {
             const textContent = ((msg.content ?? []) as any[])
@@ -277,16 +328,43 @@ export async function run(params: RunParams): Promise<void> {
             const toolCalls = ((msg.content ?? []) as any[])
               .filter((c) => c.type === 'toolCall')
               .map((c) => ({ id: c.id, name: c.name, arguments: JSON.stringify(c.arguments) }));
-            appendMessage({
-              conversationId,
-              role: 'assistant',
-              content: textContent,
-              thinking: thinkingContent || undefined,
-              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-              model: attemptModelId,
-              inputTokens: msg.usage?.input,
-              outputTokens: msg.usage?.output,
-            });
+
+            // Feature 7 — auto-continue when truncated by max_tokens.
+            const willContinue =
+              msg.stopReason === 'length' &&
+              toolCalls.length === 0 &&
+              continuationCount < AGENT_LIMITS.maxContinuations;
+
+            if (willContinue) {
+              // Buffer the fragment; do not persist yet. Queue a follow-up so the
+              // loop continues the response within this same agent.prompt() call.
+              pendingAssistant = {
+                text: (pendingAssistant?.text ?? '') + textContent,
+                thinking: (pendingAssistant?.thinking ?? '') + thinkingContent,
+              };
+              continuationCount++;
+              agent.followUp({
+                role: 'user',
+                content: '(接上文继续输出，不要重复已经输出的内容)',
+                timestamp: Date.now(),
+              });
+            } else {
+              // Final (or non-truncated) turn: persist buffered fragments + this
+              // turn merged into a single assistant row.
+              const mergedText = (pendingAssistant?.text ?? '') + textContent;
+              const mergedThinking = (pendingAssistant?.thinking ?? '') + thinkingContent;
+              pendingAssistant = null;
+              appendMessage({
+                conversationId,
+                role: 'assistant',
+                content: mergedText,
+                thinking: mergedThinking || undefined,
+                toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+                model: attemptModelId,
+                inputTokens: msg.usage?.input,
+                outputTokens: msg.usage?.output,
+              });
+            }
           }
 
           // Persist tool results
@@ -305,6 +383,18 @@ export async function run(params: RunParams): Promise<void> {
               content,
               toolCallId: trMsg.toolCallId,
             });
+          }
+
+          // Feature 6 — count completed tool rounds; force-abort if the model
+          // ignores the block and keeps calling tools well past the budget.
+          if (event.toolResults.length > 0) {
+            toolRoundsUsed++;
+            if (toolRoundsUsed > maxRounds + AGENT_LIMITS.toolRoundsHardStopGrace) {
+              console.warn(
+                `[budget] toolRoundsUsed=${toolRoundsUsed} exceeded hard stop, aborting`,
+              );
+              agent.abort();
+            }
           }
           break;
         }
@@ -338,6 +428,21 @@ export async function run(params: RunParams): Promise<void> {
       unsubscribe();
       activeAgents.delete(streamId);
     }
+  }
+
+  // Flush any continuation fragment that was buffered but never reached a final
+  // turn (e.g. the continuing turn errored). Avoids losing already-streamed text.
+  // Cast resets CFA narrowing — pendingAssistant is mutated inside the subscribe closure.
+  const buffered = pendingAssistant as { text: string; thinking: string } | null;
+  if (buffered && (buffered.text || buffered.thinking)) {
+    appendMessage({
+      conversationId,
+      role: 'assistant',
+      content: buffered.text,
+      thinking: buffered.thinking || undefined,
+      model: activeModelId,
+    });
+    pendingAssistant = null;
   }
 
   if (lastErrorMsg) {

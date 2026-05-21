@@ -298,6 +298,20 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
           )}
         </Section>
 
+        {provider.kind === 'anthropic' && (
+          <Section title="提示缓存">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-xs text-ink-subtle">
+                在系统提示与近期消息上启用 Anthropic cache_control 断点，可显著降低重复前缀的 token 费用。官方 Anthropic 端点默认开启；多数第三方兼容端点不支持，开启可能报错。
+              </span>
+              <Toggle
+                checked={provider.promptCaching ?? provider.baseURL.includes('api.anthropic.com')}
+                onChange={(v) => persist({ promptCaching: v })}
+              />
+            </div>
+          </Section>
+        )}
+
         <Section
           title={
             <span className="flex items-center gap-2">

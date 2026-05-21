@@ -3,6 +3,12 @@ export const AGENT_LIMITS = {
   // Compress conversation history when estimated token count exceeds this value.
   // ~2.5 chars per token (mixed CJK/Latin). 30 k tokens ≈ 75 k chars.
   contextCompressThreshold: 30_000,
+  // Inject a soft "wrap up soon" notice when tool-round usage crosses these ratios.
+  toolBudgetWarnRatios: [0.7, 0.9],
+  // Force-abort if the model keeps calling tools beyond maxToolRounds + this grace.
+  toolRoundsHardStopGrace: 3,
+  // Max times to auto-continue an assistant turn truncated by max_tokens (stopReason='length').
+  maxContinuations: 3,
 } as const;
 
 import type { ShortcutDef } from '@shared/types';
