@@ -25,7 +25,7 @@ const DEFAULT_GENERAL: GeneralConfig = {
   transparentWindow: false,
   showTrayIcon: true,
   minimizeToTrayOnClose: true,
-  enableThinking: false,
+  enableThinking: true,
 };
 
 interface SettingsState {

@@ -52,6 +52,14 @@ const MIGRATIONS: Migration[] = [
     version: 4,
     sql: `ALTER TABLE messages ADD COLUMN thinking TEXT;`,
   },
+  {
+    version: 5,
+    sql: `ALTER TABLE messages ADD COLUMN is_error INTEGER NOT NULL DEFAULT 0;`,
+  },
+  {
+    version: 6,
+    sql: `ALTER TABLE conversations ADD COLUMN system_prompt TEXT;`,
+  },
 ];
 
 let db: Database.Database | null = null;

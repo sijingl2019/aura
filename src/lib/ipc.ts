@@ -47,13 +47,10 @@ async function handleEvent(event: StreamEvent): Promise<void> {
       break;
     case 'done': {
       const conversationId = streaming.conversationId;
-      // `done` always follows `error`; reset() would wipe the error before the
-      // user sees it. Carry it across the reset so it stays until the next send
-      // (begin() clears it).
-      const carryError = streaming.error;
       streaming.reset();
-      if (carryError) streaming.setError(carryError);
       if (conversationId) {
+        // Errors are now persisted as isError assistant messages, so reloading
+        // surfaces them as bubbles — no transient error state to preserve.
         const convStore = useConversationsStore.getState();
         await convStore.loadMessages(conversationId);
         await convStore.loadList();

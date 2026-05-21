@@ -7,6 +7,7 @@ interface ConversationRow {
   title: string;
   model: string | null;
   provider: string | null;
+  system_prompt?: string | null;
   created_at: number;
   updated_at: number;
   is_system: number;
@@ -25,6 +26,7 @@ interface MessageRow {
   input_tokens: number | null;
   output_tokens: number | null;
   skill_name: string | null;
+  is_error: number;
 }
 
 function mapConversation(row: ConversationRow): Conversation {
@@ -52,6 +54,7 @@ function mapMessage(row: MessageRow): ChatMessage {
     inputTokens: row.input_tokens ?? undefined,
     outputTokens: row.output_tokens ?? undefined,
     skillName: row.skill_name ?? undefined,
+    isError: row.is_error ? true : undefined,
   };
 }
 
@@ -120,6 +123,19 @@ export function touchConversation(id: string): void {
   getDb().prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(Date.now(), id);
 }
 
+export function getConversationSystemPrompt(id: string): string | null {
+  const row = getDb()
+    .prepare('SELECT system_prompt FROM conversations WHERE id = ?')
+    .get(id) as { system_prompt: string | null } | undefined;
+  return row?.system_prompt ?? null;
+}
+
+export function setConversationSystemPrompt(id: string, systemPrompt: string): void {
+  getDb()
+    .prepare('UPDATE conversations SET system_prompt = ? WHERE id = ?')
+    .run(systemPrompt, id);
+}
+
 export function listMessages(conversationId: string): ChatMessage[] {
   const rows = getDb()
     .prepare(
@@ -140,6 +156,7 @@ export interface AppendMessageInput {
   inputTokens?: number;
   outputTokens?: number;
   skillName?: string;
+  isError?: boolean;
 }
 
 export function searchConversations(query: string, limit = 20): ConversationSearchResult[] {
@@ -214,11 +231,12 @@ export function appendMessage(input: AppendMessageInput): ChatMessage {
     inputTokens: input.inputTokens,
     outputTokens: input.outputTokens,
     skillName: input.skillName,
+    isError: input.isError || undefined,
   };
   getDb()
     .prepare(
-      `INSERT INTO messages (id, conversation_id, role, content, thinking, tool_calls, tool_call_id, created_at, model, input_tokens, output_tokens, skill_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO messages (id, conversation_id, role, content, thinking, tool_calls, tool_call_id, created_at, model, input_tokens, output_tokens, skill_name, is_error)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       msg.id,
@@ -233,6 +251,7 @@ export function appendMessage(input: AppendMessageInput): ChatMessage {
       msg.inputTokens ?? null,
       msg.outputTokens ?? null,
       msg.skillName ?? null,
+      msg.isError ? 1 : 0,
     );
   touchConversation(msg.conversationId);
   return msg;

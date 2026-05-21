@@ -19,6 +19,8 @@ export interface ChatMessage {
   inputTokens?: number;
   outputTokens?: number;
   skillName?: string;
+  // Error messages are shown as assistant bubbles but excluded from LLM context.
+  isError?: boolean;
 }
 
 export interface Conversation {

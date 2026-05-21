@@ -32,7 +32,9 @@ export function chatMessagesToAgent(messages: ChatMessage[]): any[] {
   };
 
   for (const m of messages) {
-    if (m.role === 'system') continue;
+    // System messages are handled via AgentState.systemPrompt; error messages are
+    // display-only and must never enter the LLM context.
+    if (m.role === 'system' || m.isError) continue;
 
     if (m.role === 'tool') {
       pendingToolResults.push({
@@ -47,11 +49,19 @@ export function chatMessagesToAgent(messages: ChatMessage[]): any[] {
     flushToolResults(m.createdAt);
 
     if (m.role === 'user') {
-      out.push({
-        role: 'user',
-        content: m.content,
-        timestamp: m.createdAt,
-      });
+      // Merge consecutive user messages — filtering error/system rows (or a user
+      // turn that never got a reply) can leave two users adjacent, which Anthropic
+      // rejects (roles must alternate).
+      const last = out[out.length - 1];
+      if (last && last.role === 'user' && typeof last.content === 'string') {
+        last.content = `${last.content}\n\n${m.content}`;
+      } else {
+        out.push({
+          role: 'user',
+          content: m.content,
+          timestamp: m.createdAt,
+        });
+      }
     } else if (m.role === 'assistant') {
       lastAssistantToolCalls = m.toolCalls;
       const content: any[] = [];

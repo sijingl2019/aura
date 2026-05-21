@@ -75,26 +75,35 @@ export function MessageBubble({ message, showAvatar = true, streamingToolCalls, 
           <div className="w-8 shrink-0" />
         )}
         <div className="flex max-w-[85%] flex-col gap-2 text-sm text-ink">
-          {message.thinking && (
-            <ThinkingBlock thinking={message.thinking} defaultOpen={!!isStreaming && !message.content} />
-          )}
-          {toolCalls && toolCalls.length > 0 && (
-            <div className="flex flex-col gap-1">
-              {toolCalls.map((tc) => (
-                <ToolCallCard key={tc.id} call={tc} storedResult={toolResultsMap?.get(tc.id)} />
-              ))}
+          {message.isError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-red-600">
+              <span className="mr-1">⚠️</span>
+              <span className="whitespace-pre-wrap break-words">{message.content}</span>
             </div>
-          )}
-          {message.content && (
-            <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm">
-              <Markdown content={message.content} />
-              {isStreaming && <span className="ml-0.5 inline-block animate-pulse">▊</span>}
-            </div>
-          )}
-          {!message.content && !message.thinking && (!toolCalls || toolCalls.length === 0) && isStreaming && (
-            <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm text-ink-subtle">
-              <span className="animate-pulse">思考中…</span>
-            </div>
+          ) : (
+            <>
+              {message.thinking && (
+                <ThinkingBlock thinking={message.thinking} defaultOpen={!!isStreaming && !message.content} />
+              )}
+              {toolCalls && toolCalls.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {toolCalls.map((tc) => (
+                    <ToolCallCard key={tc.id} call={tc} storedResult={toolResultsMap?.get(tc.id)} />
+                  ))}
+                </div>
+              )}
+              {message.content && (
+                <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm">
+                  <Markdown content={message.content} />
+                  {isStreaming && <span className="ml-0.5 inline-block animate-pulse">▊</span>}
+                </div>
+              )}
+              {!message.content && !message.thinking && (!toolCalls || toolCalls.length === 0) && isStreaming && (
+                <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm text-ink-subtle">
+                  <span className="animate-pulse">思考中…</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

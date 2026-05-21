@@ -6,7 +6,13 @@ import type { AgentEvent } from '@mariozechner/pi-agent-core';
 import { streamSimple } from '@mariozechner/pi-ai';
 import type { WebContents } from 'electron';
 import type { FallbackChainEntry, ProviderConfig, StreamEvent } from '@shared/types';
-import { appendMessage, listMessages, renameConversation } from '../db/repo';
+import {
+  appendMessage,
+  getConversationSystemPrompt,
+  listMessages,
+  renameConversation,
+  setConversationSystemPrompt,
+} from '../db/repo';
 import { listTools } from '../tools/registry';
 import { toPiModel } from '../providers/to-pi-model';
 import { toAgentTool } from '../tools/to-agent-tool';
@@ -17,6 +23,8 @@ import { buildMemorySection } from '../memory/prompt';
 import { AGENT_LIMITS } from '../config/hardcoded';
 import { getGeneralConfig, getSettings, resolveProvider } from '../config/store';
 import type { SkillStore } from '../skills/loader';
+import { shouldSurfaceThinking } from '@shared/thinking';
+import { buildPromptText, resolveSystemPromptSnapshot } from './system-prompt-cache';
 
 const AT_REF_RE = /@([\w./\\-]+)/g;
 const MAX_FILE_BYTES = 200_000; // 200 KB per file
@@ -145,14 +153,22 @@ export async function run(params: RunParams): Promise<void> {
     renameConversation(conversationId, title);
   }
 
+  const skillBody = skillId ? skills.get(skillId)?.body : undefined;
   const systemParts: string[] = [];
-  if (skillId) {
-    const skill = skills.get(skillId);
-    if (skill) systemParts.push(skill.body);
-  }
 
-  // Inject persistent memory context into every conversation
+  // Inject persistent memory context into every conversation. When prompt
+  // caching is active this becomes the per-conversation snapshot, so later
+  // memory changes do not invalidate the cached prefix mid-session.
   systemParts.push(buildMemorySection());
+
+  // Build provider chain early so prompt snapshotting follows the provider
+  // actually used for this request (including configured fallbacks).
+  const chain = buildProviderChain(
+    providerCfg,
+    modelId,
+    getSettings().fallbackChain ?? [],
+  );
+  const usePromptSnapshot = chain.some((entry) => effectivePromptCaching(entry.cfg));
 
   // Compress history when estimated token count exceeds threshold.
   // The summary goes into the system prompt; only a recent tail of real messages
@@ -165,28 +181,39 @@ export async function run(params: RunParams): Promise<void> {
   );
   if (compressed) {
     console.log(`[context-compressor] compressed ${history.length} -> ${workingHistory.length} messages`);
-    if (summary) systemParts.push(summary);
   }
 
-  const systemPrompt = systemParts.join('\n\n');
+  const freshSystemPrompt = systemParts.join('\n\n');
+  let systemPrompt = freshSystemPrompt;
+  if (usePromptSnapshot) {
+    const snapshot = resolveSystemPromptSnapshot({
+      storedPrompt: getConversationSystemPrompt(conversationId),
+      freshPrompt: freshSystemPrompt,
+      compressedSummary: summary,
+    });
+    systemPrompt = snapshot.prompt;
+    if (snapshot.shouldStore) {
+      setConversationSystemPrompt(conversationId, freshSystemPrompt);
+    }
+  } else if (summary) {
+    systemPrompt = [freshSystemPrompt, summary].filter(Boolean).join('\n\n');
+  }
 
   const agentTools = listTools().map((t) => toAgentTool(t, cwd));
   // Pass history captured BEFORE the new user message — agent.prompt() adds it
   const existingMessages = chatMessagesToAgent(workingHistory);
 
-  // Build provider chain: primary + configured fallbacks
-  const chain = buildProviderChain(
-    providerCfg,
-    modelId,
-    getSettings().fallbackChain ?? [],
-  );
-
   // Prompt text (with @file expansion) is identical across all fallback attempts
-  const promptText = expandAtReferences(userText, cwd);
+  const promptText = buildPromptText({
+    userText,
+    expandedUserText: expandAtReferences(userText, cwd),
+    skillBody,
+  });
 
   // Extended thinking / reasoning — opt-in via the enableThinking setting.
   // When 'off', the agent loop omits reasoning params entirely.
-  const thinkingLevel: 'off' | 'medium' = getGeneralConfig().enableThinking ? 'medium' : 'off';
+  const thinkingEnabled = shouldSurfaceThinking(getGeneralConfig());
+  const thinkingLevel: 'off' | 'medium' = thinkingEnabled ? 'medium' : 'off';
 
   // contentSent tracks whether any streaming output has been delivered to the renderer.
   // Once content is in flight we cannot transparently retry with a different provider.
@@ -283,7 +310,7 @@ export async function run(params: RunParams): Promise<void> {
           if (ae.type === 'text_delta') {
             contentSent = true;
             send({ type: 'text', streamId, delta: ae.delta });
-          } else if (ae.type === 'thinking_delta') {
+          } else if (ae.type === 'thinking_delta' && thinkingEnabled) {
             contentSent = true;
             send({ type: 'thinking', streamId, delta: ae.delta });
           } else if (ae.type === 'toolcall_start') {
@@ -335,10 +362,12 @@ export async function run(params: RunParams): Promise<void> {
               .filter((c) => c.type === 'text')
               .map((c) => c.text as string)
               .join('');
-            const thinkingContent = ((msg.content ?? []) as any[])
-              .filter((c) => c.type === 'thinking')
-              .map((c) => c.thinking as string)
-              .join('');
+            const thinkingContent = thinkingEnabled
+              ? ((msg.content ?? []) as any[])
+                .filter((c) => c.type === 'thinking')
+                .map((c) => c.thinking as string)
+                .join('')
+              : '';
             const toolCalls = ((msg.content ?? []) as any[])
               .filter((c) => c.type === 'toolCall')
               .map((c) => ({ id: c.id, name: c.name, arguments: JSON.stringify(c.arguments) }));
@@ -476,7 +505,16 @@ export async function run(params: RunParams): Promise<void> {
   }
 
   if (lastErrorMsg) {
-    send({ type: 'error', streamId, message: lastErrorMsg });
+    // Persist the error as an assistant message flagged isError: it renders as an
+    // assistant bubble (with avatar) and survives reloads, but message-bridge
+    // excludes isError rows from the LLM context so it never pollutes future turns.
+    appendMessage({
+      conversationId,
+      role: 'assistant',
+      content: lastErrorMsg,
+      model: activeModelId,
+      isError: true,
+    });
   }
   safeSendDone();
 }

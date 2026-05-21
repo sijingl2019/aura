@@ -5,6 +5,7 @@ import { useStreamingStore } from '@/stores/streaming';
 import { useSettingsStore } from '@/stores/settings';
 import { useUiStore } from '@/stores/ui';
 import { MessageBubble } from './MessageBubble';
+import { shouldSurfaceThinking } from '@shared/thinking';
 
 interface ChatViewProps {
   conversationId: string;
@@ -54,6 +55,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
   const providers = useSettingsStore((s) => s.providers);
   const defaultModel = useSettingsStore((s) => s.defaultModel);
   const userAvatar = useSettingsStore((s) => s.general.userAvatar);
+  const showThinking = useSettingsStore((s) => shouldSurfaceThinking(s.general));
   const chatWideMode = useUiStore((s) => s.chatWideMode);
   const toggleChatWideMode = useUiStore((s) => s.toggleChatWideMode);
 
@@ -85,10 +87,13 @@ export function ChatView({ conversationId }: ChatViewProps) {
 
   const displayed = useMemo<ChatMessage[]>(() => {
     // Never show standalone tool-result bubbles; their content surfaces inside ToolCallCard
-    const filtered = messages.filter((m) => m.role !== 'tool');
+    const filtered = messages
+      .filter((m) => m.role !== 'tool')
+      .map((m) => (showThinking ? m : { ...m, thinking: undefined }));
 
     if (!isActiveStream) return filtered;
-    if (!streaming.text && !streaming.thinking && streaming.toolCalls.length === 0) {
+    const visibleStreamingThinking = showThinking ? streaming.thinking : '';
+    if (!streaming.text && !visibleStreamingThinking && streaming.toolCalls.length === 0) {
       const placeholder: ChatMessage = {
         id: '__streaming__',
         conversationId,
@@ -104,7 +109,7 @@ export function ChatView({ conversationId }: ChatViewProps) {
       conversationId,
       role: 'assistant',
       content: streaming.text,
-      thinking: streaming.thinking || undefined,
+      thinking: visibleStreamingThinking || undefined,
       toolCalls: streaming.toolCalls.map((c) => ({
         id: c.id,
         name: c.name,
@@ -113,14 +118,14 @@ export function ChatView({ conversationId }: ChatViewProps) {
       createdAt: Date.now(),
     };
     return [...filtered, streamingMsg];
-  }, [isActiveStream, messages, streaming.text, streaming.thinking, streaming.toolCalls, conversationId]);
+  }, [isActiveStream, messages, showThinking, streaming.text, streaming.thinking, streaming.toolCalls, conversationId]);
 
   const hasVisibleStreamingPlaceholder =
-    isActiveStream && !streaming.text && !streaming.thinking && streaming.toolCalls.length === 0;
+    isActiveStream && !streaming.text && !(showThinking && streaming.thinking) && streaming.toolCalls.length === 0;
 
   const scrollKey = getChatScrollKey({
     displayedMessageCount: displayed.length,
-    streamingText: streaming.text + streaming.thinking,
+    streamingText: streaming.text + (showThinking ? streaming.thinking : ''),
     streamingToolCallCount: streaming.toolCalls.length,
     hasVisibleStreamingPlaceholder,
   });

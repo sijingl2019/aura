@@ -31,13 +31,19 @@ export function registerLlmIpc(deps: { skills: SkillStore }): void {
     const emitError = (message: string) => {
       try {
         persistUserMessageOnError();
+        // Persist the error as an assistant bubble (isError) — display-only,
+        // excluded from LLM context by message-bridge. The renderer reloads on `done`.
+        appendMessage({
+          conversationId: params.conversationId,
+          role: 'assistant',
+          content: message,
+          isError: true,
+        });
       } catch (e) {
-        console.warn(`[llm:stream] failed to persist user message: ${(e as Error).message}`);
+        console.warn(`[llm:stream] failed to persist error message: ${(e as Error).message}`);
       }
-      const ev: StreamEvent = { type: 'error', streamId, message };
       const doneEv: StreamEvent = { type: 'done', streamId };
       if (!webContents.isDestroyed()) {
-        webContents.send('llm:event', ev);
         webContents.send('llm:event', doneEv);
       }
     };
