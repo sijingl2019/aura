@@ -25,6 +25,7 @@ import { getGeneralConfig, getSettings, resolveProvider } from '../config/store'
 import type { SkillStore } from '../skills/loader';
 import { shouldSurfaceThinking } from '@shared/thinking';
 import { buildPromptText, resolveSystemPromptSnapshot } from './system-prompt-cache';
+import { loadContextFiles } from './context-files';
 
 const AT_REF_RE = /@([\w./\\-]+)/g;
 const MAX_FILE_BYTES = 200_000; // 200 KB per file
@@ -160,6 +161,13 @@ export async function run(params: RunParams): Promise<void> {
   // caching is active this becomes the per-conversation snapshot, so later
   // memory changes do not invalidate the cached prefix mid-session.
   systemParts.push(buildMemorySection());
+
+  // Feature 8: Auto-load project context files (CLAUDE.md, AGENTS.md, .rules.md,
+  // .cursorrules, .clinerules) from the workspace directory and inject them as
+  // project-level rules. Feature 14: detectInjection() inside loadContextFiles
+  // scans each file for prompt-injection patterns and prepends a safety notice.
+  const contextSection = loadContextFiles(cwd);
+  if (contextSection) systemParts.push(contextSection);
 
   // Build provider chain early so prompt snapshotting follows the provider
   // actually used for this request (including configured fallbacks).
