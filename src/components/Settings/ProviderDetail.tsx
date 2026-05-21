@@ -105,6 +105,9 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
   const [detecting, setDetecting] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingModelId, setEditingModelId] = useState<string | null>(null);
+  const [editingModelIdValue, setEditingModelIdValue] = useState('');
+  const [editingModelDisplayName, setEditingModelDisplayName] = useState('');
 
   // name editing
   const [editingName, setEditingName] = useState(false);
@@ -178,6 +181,26 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
 
   const handleRemoveModel = (id: string) => {
     persist({ models: provider.models.filter((m) => m.id !== id) });
+  };
+
+  const startEditingModel = (m: ProviderModel) => {
+    setEditingModelId(m.id);
+    setEditingModelIdValue(m.id);
+    setEditingModelDisplayName(m.name ?? '');
+  };
+
+  const commitModelEdit = (originalId: string) => {
+    const newId = editingModelIdValue.trim();
+    if (!newId) { setEditingModelId(null); return; }
+    const newName = editingModelDisplayName.trim();
+    persist({
+      models: provider.models.map((m) =>
+        m.id === originalId
+          ? { ...m, id: newId, name: newName && newName !== newId ? newName : undefined }
+          : m,
+      ),
+    });
+    setEditingModelId(null);
   };
 
   const handleDeleteProvider = () => {
@@ -344,9 +367,57 @@ function ProviderDetailInner({ provider }: { provider: ProviderConfig }) {
                   {g.models.map((m) => (
                     <li
                       key={m.id}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-ink"
+                      className="group flex items-center gap-2 px-3 py-2 text-sm text-ink"
                     >
-                      <span className="flex-1 truncate">{m.name ?? m.id}</span>
+                      {editingModelId === m.id ? (
+                        <div
+                          className="flex flex-1 flex-col gap-1 py-0.5"
+                          onBlur={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                              commitModelEdit(m.id);
+                            }
+                          }}
+                        >
+                          <input
+                            autoFocus
+                            type="text"
+                            value={editingModelIdValue}
+                            onChange={(e) => setEditingModelIdValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitModelEdit(m.id);
+                              if (e.key === 'Escape') setEditingModelId(null);
+                            }}
+                            placeholder="模型 ID"
+                            className="h-6 rounded border border-accent/40 bg-transparent px-1.5 text-xs text-ink placeholder:text-ink-subtle focus:outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={editingModelDisplayName}
+                            onChange={(e) => setEditingModelDisplayName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitModelEdit(m.id);
+                              if (e.key === 'Escape') setEditingModelId(null);
+                            }}
+                            placeholder="显示名称（可选）"
+                            className="h-6 rounded border border-black/10 bg-transparent px-1.5 text-xs text-ink placeholder:text-ink-subtle focus:border-accent/40 focus:outline-none"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <span className="flex-1 truncate">{m.name ?? m.id}</span>
+                          {m.name && m.name !== m.id && (
+                            <span className="truncate text-xs text-ink-subtle">{m.id}</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => startEditingModel(m)}
+                            className="opacity-0 group-hover:opacity-100 text-ink-subtle hover:text-ink transition-opacity"
+                            title="重命名"
+                          >
+                            <EditIcon />
+                          </button>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleRemoveModel(m.id)}

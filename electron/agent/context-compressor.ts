@@ -86,12 +86,7 @@ export async function compressHistoryIfNeeded(
   modelId: string,
   thresholdTokens: number,
 ): Promise<CompressResult> {
-  const est = estimateTokens(messages); // TEMP(诊断功能1): remove this block
-  console.log(
-    `[context-compressor] check: estimate=${est} threshold=${thresholdTokens} messages=${messages.length}`,
-  );
-  if (est <= thresholdTokens) {
-    console.log('[context-compressor] skip: under token threshold');
+  if (estimateTokens(messages) <= thresholdTokens) {
     return { messages, compressed: false };
   }
 
@@ -120,9 +115,6 @@ export async function compressHistoryIfNeeded(
 
   // Nothing older to summarize (boundary is the first message), or no user boundary.
   if (startIdx <= 0 || startIdx >= total) {
-    console.log(
-      `[context-compressor] skip: no older messages to summarize (startIdx=${startIdx}, total=${total})`,
-    );
     return { messages, compressed: false };
   }
 

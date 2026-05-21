@@ -223,6 +223,9 @@ export async function run(params: RunParams): Promise<void> {
     let toolRoundsUsed = 0;
     const warnedThresholds = new Set<number>();
     let continuationCount = 0;
+    // pi-agent-core's stream contract forbids throwing — API failures surface as a
+    // stopReason:'error' turn instead. Captured here, then handled after prompt() resolves.
+    let attemptError: { message: string; kind: ReturnType<typeof classifyError> } | null = null;
     pendingAssistant = null;
 
     const model = toPiModel(attemptCfg, attemptModelId);
@@ -319,6 +322,15 @@ export async function run(params: RunParams): Promise<void> {
         case 'turn_end': {
           const msg = event.message as any;
           if (msg.role === 'assistant') {
+            // API failure arrives as a stopReason:'error' turn (no exception thrown).
+            // Capture it instead of persisting an empty assistant row.
+            if (msg.stopReason === 'error') {
+              attemptError = {
+                message: (msg.errorMessage as string)?.trim() || '生成失败（未知错误）',
+                kind: classifyError({ message: msg.errorMessage, status: msg.status }),
+              };
+              break;
+            }
             const textContent = ((msg.content ?? []) as any[])
               .filter((c) => c.type === 'text')
               .map((c) => c.text as string)
@@ -401,17 +413,33 @@ export async function run(params: RunParams): Promise<void> {
           break;
         }
 
-        case 'agent_end':
-          safeSendDone();
-          break;
+        // agent_end intentionally not handled here — `done` is sent once after the
+        // retry loop so a fallback attempt isn't cut short by a premature done.
       }
     });
 
     try {
       await agent.prompt({ role: 'user', content: promptText, timestamp: Date.now() });
+      // pi-agent-core resolves even when the LLM call fails — the failure is
+      // captured in `attemptError` from the stopReason:'error' turn above.
+      // Cast resets CFA narrowing (attemptError is mutated inside the subscribe closure).
+      const err = attemptError as { message: string; kind: ReturnType<typeof classifyError> } | null;
+      if (err) {
+        const hasMore = attempt < chain.length - 1;
+        if (isRetryableWithFallback(err.kind) && hasMore && !contentSent) {
+          console.log(
+            `[fallback] ${attemptCfg.name}/${attemptModelId} failed (${err.kind}): ${err.message}`,
+          );
+          lastErrorMsg = err.message;
+          continue; // try next provider
+        }
+        lastErrorMsg = err.message;
+        break;
+      }
       lastErrorMsg = null;
       break; // success — exit retry loop
     } catch (e) {
+      // Some failures still throw (sync errors, getApiKey, malformed requests).
       const errMsg = e instanceof Error ? e.message : String(e);
       const kind = classifyError(e);
       const hasMore = attempt < chain.length - 1;
