@@ -1,13 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
-import OpenAI from 'openai';
-import { randomUUID } from 'node:crypto';
 import type { ChatMessage, ProviderConfig } from '@shared/types';
+import OpenAI from 'openai';
 
 // Conservative average: CJK ≈ 1 token/char, Latin ≈ 4 chars/token → ~2.5 chars/token mixed
 const CHARS_PER_TOKEN = 2.5;
 
 // Messages to preserve verbatim at each end of the history
-const PROTECT_HEAD = 4;  // first N messages (first 1-2 exchanges for context baseline)
 const PROTECT_TAIL = 20; // last N messages (most recent and relevant)
 
 /** Rough token estimate for a list of ChatMessages. */
@@ -65,13 +63,18 @@ async function callForSummary(
 export interface CompressResult {
   messages: ChatMessage[];
   compressed: boolean;
+  /** When compressed, the summary block to append to the system prompt. */
+  summary?: string;
 }
 
 /**
- * Summarize the middle portion of the history when the estimated token count exceeds
- * `thresholdTokens`. Head (first PROTECT_HEAD) and tail (last PROTECT_TAIL) messages
- * are always kept verbatim. The middle is replaced by a synthetic user+assistant pair
- * that contains the LLM-generated summary.
+ * When the estimated token count exceeds `thresholdTokens`, summarize the older
+ * portion of the history into a text block (returned via `summary`, to be appended
+ * to the system prompt) and keep only a recent tail of real messages.
+ *
+ * The tail is a contiguous suffix that **starts at a user message** so user/assistant
+ * alternation stays valid — injecting synthetic messages mid-history could create
+ * consecutive same-role messages and break Anthropic's alternation requirement.
  *
  * Falls back to the original array on any error so the caller always gets a usable result.
  *
@@ -83,23 +86,52 @@ export async function compressHistoryIfNeeded(
   modelId: string,
   thresholdTokens: number,
 ): Promise<CompressResult> {
-  if (estimateTokens(messages) <= thresholdTokens) {
+  const est = estimateTokens(messages); // TEMP(诊断功能1): remove this block
+  console.log(
+    `[context-compressor] check: estimate=${est} threshold=${thresholdTokens} messages=${messages.length}`,
+  );
+  if (est <= thresholdTokens) {
+    console.log('[context-compressor] skip: under token threshold');
     return { messages, compressed: false };
   }
 
   const total = messages.length;
-  // Need at least one message in the middle that can be summarised
-  if (total <= PROTECT_HEAD + PROTECT_TAIL + 1) {
+
+  // Keep ~PROTECT_TAIL recent messages, but the tail must START at a user message
+  // so user/assistant alternation stays valid. Search backward from the target
+  // for the nearest user boundary (tail may be a bit larger than PROTECT_TAIL);
+  // fall back to the nearest user message after the target.
+  const target = Math.max(0, total - PROTECT_TAIL);
+  let startIdx = -1;
+  for (let i = target; i >= 0; i--) {
+    if (messages[i].role === 'user') {
+      startIdx = i;
+      break;
+    }
+  }
+  if (startIdx < 0) {
+    for (let i = target + 1; i < total; i++) {
+      if (messages[i].role === 'user') {
+        startIdx = i;
+        break;
+      }
+    }
+  }
+
+  // Nothing older to summarize (boundary is the first message), or no user boundary.
+  if (startIdx <= 0 || startIdx >= total) {
+    console.log(
+      `[context-compressor] skip: no older messages to summarize (startIdx=${startIdx}, total=${total})`,
+    );
     return { messages, compressed: false };
   }
 
-  const head = messages.slice(0, PROTECT_HEAD);
-  const tail = messages.slice(total - PROTECT_TAIL);
-  const middle = messages.slice(PROTECT_HEAD, total - PROTECT_TAIL);
+  const older = messages.slice(0, startIdx);
+  const tail = messages.slice(startIdx);
 
   let summary: string;
   try {
-    summary = await callForSummary(buildSummaryPrompt(middle), providerCfg, modelId);
+    summary = await callForSummary(buildSummaryPrompt(older), providerCfg, modelId);
   } catch (e) {
     console.warn(
       '[context-compressor] summarization failed, keeping full history:',
@@ -112,27 +144,7 @@ export async function compressHistoryIfNeeded(
     return { messages, compressed: false };
   }
 
-  const convId = messages[0]?.conversationId ?? '';
-  const now = Date.now();
+  const summaryBlock = `## 之前对话的摘要\n（以下是较早 ${older.length} 条消息的摘要，用于在压缩上下文后保留背景；完整记录仍在本地数据库中）\n\n${summary.trim()}`;
 
-  // Synthetic pair representing the compressed middle
-  const summaryMsg: ChatMessage = {
-    id: randomUUID(),
-    conversationId: convId,
-    role: 'user',
-    content: `【以下是较早对话的摘要，中间 ${middle.length} 条消息已压缩以节省上下文空间】\n\n${summary}`,
-    createdAt: now - 2,
-  };
-  const ackMsg: ChatMessage = {
-    id: randomUUID(),
-    conversationId: convId,
-    role: 'assistant',
-    content: '好的，我已了解之前对话的背景。',
-    createdAt: now - 1,
-  };
-
-  return {
-    messages: [...head, summaryMsg, ackMsg, ...tail],
-    compressed: true,
-  };
+  return { messages: tail, compressed: true, summary: summaryBlock };
 }

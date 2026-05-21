@@ -132,7 +132,7 @@ export function KnowledgeSection() {
         </section>
 
         {/* Knowledge list card */}
-        {enabled && (
+        {difyKnowledge?.enabled && (
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-ink">知识库列表</span>

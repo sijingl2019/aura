@@ -70,6 +70,16 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
     if (conversationId) setPendingModel(null);
   }, [conversationId]);
 
+  // Re-focus the textarea when streaming finishes — it gets disabled (and loses
+  // focus) during generation, so without this the user must click it again.
+  const prevStreamingRef = useRef(isStreaming);
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming) {
+      textareaRef.current?.focus();
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
   const activeSkill = skills.find((s) => s.id === activeSkillId) ?? null;
 
   // ── Skill picker ──────────────────────────────────────────────────────────

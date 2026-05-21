@@ -154,19 +154,21 @@ export async function run(params: RunParams): Promise<void> {
   // Inject persistent memory context into every conversation
   systemParts.push(buildMemorySection());
 
-  const systemPrompt = systemParts.join('\n\n');
-
   // Compress history when estimated token count exceeds threshold.
-  // The result is ephemeral — the full history remains in the DB.
-  const { messages: workingHistory, compressed } = await compressHistoryIfNeeded(
+  // The summary goes into the system prompt; only a recent tail of real messages
+  // is kept. The result is ephemeral — the full history remains in the DB.
+  const { messages: workingHistory, compressed, summary } = await compressHistoryIfNeeded(
     history,
     providerCfg,
     modelId,
     AGENT_LIMITS.contextCompressThreshold,
   );
   if (compressed) {
-    console.log(`[context-compressor] ${history.length} → ${workingHistory.length} messages`);
+    console.log(`[context-compressor] compressed ${history.length} -> ${workingHistory.length} messages`);
+    if (summary) systemParts.push(summary);
   }
+
+  const systemPrompt = systemParts.join('\n\n');
 
   const agentTools = listTools().map((t) => toAgentTool(t, cwd));
   // Pass history captured BEFORE the new user message — agent.prompt() adds it

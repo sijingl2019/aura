@@ -78,17 +78,17 @@ export function MessageBubble({ message, showAvatar = true, streamingToolCalls, 
           {message.thinking && (
             <ThinkingBlock thinking={message.thinking} defaultOpen={!!isStreaming && !message.content} />
           )}
-          {message.content && (
-            <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm">
-              <Markdown content={message.content} />
-              {isStreaming && <span className="ml-0.5 inline-block animate-pulse">▊</span>}
-            </div>
-          )}
           {toolCalls && toolCalls.length > 0 && (
             <div className="flex flex-col gap-1">
               {toolCalls.map((tc) => (
                 <ToolCallCard key={tc.id} call={tc} storedResult={toolResultsMap?.get(tc.id)} />
               ))}
+            </div>
+          )}
+          {message.content && (
+            <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm">
+              <Markdown content={message.content} />
+              {isStreaming && <span className="ml-0.5 inline-block animate-pulse">▊</span>}
             </div>
           )}
           {!message.content && !message.thinking && (!toolCalls || toolCalls.length === 0) && isStreaming && (
