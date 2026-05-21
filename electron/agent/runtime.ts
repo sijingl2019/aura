@@ -210,6 +210,18 @@ export async function run(params: RunParams): Promise<void> {
     skillBody,
   });
 
+  // If the kept history ends with a user message (e.g. the previous turn only
+  // produced an error, which message-bridge filters out of context), then
+  // agent.prompt() would append a second consecutive user message — which
+  // providers reject (often as an empty reply). Merge that trailing user into
+  // this prompt and drop it so user/assistant roles still alternate.
+  let promptContent = promptText;
+  const lastExisting = existingMessages[existingMessages.length - 1];
+  if (lastExisting && lastExisting.role === 'user' && typeof lastExisting.content === 'string') {
+    promptContent = `${lastExisting.content}\n\n${promptText}`;
+    existingMessages.pop();
+  }
+
   // Extended thinking / reasoning — opt-in via the enableThinking setting.
   // When 'off', the agent loop omits reasoning params entirely.
   const thinkingEnabled = shouldSurfaceThinking(getGeneralConfig());
@@ -448,7 +460,7 @@ export async function run(params: RunParams): Promise<void> {
     });
 
     try {
-      await agent.prompt({ role: 'user', content: promptText, timestamp: Date.now() });
+      await agent.prompt({ role: 'user', content: promptContent, timestamp: Date.now() });
       // pi-agent-core resolves even when the LLM call fails — the failure is
       // captured in `attemptError` from the stopReason:'error' turn above.
       // Cast resets CFA narrowing (attemptError is mutated inside the subscribe closure).
