@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron';
-import type { LlmStreamParams, StreamEvent } from '@shared/types';
-import { abortRun, newStreamId, run } from '../agent/runtime';
+import type { LlmSteerParams, LlmStreamParams, StreamEvent } from '@shared/types';
+import { abortRun, newStreamId, run, steerRun } from '../agent/runtime';
 import { getSettings, resolveProvider } from '../config/store';
 import { appendMessage, getConversation, listMessages, renameConversation } from '../db/repo';
 import type { SkillStore } from '../skills/loader';
@@ -97,7 +97,9 @@ export function registerLlmIpc(deps: { skills: SkillStore }): void {
       providerCfg,
       modelId,
       skills: deps.skills,
-      webContents,
+      send: (ev: StreamEvent) => {
+        if (!webContents.isDestroyed()) webContents.send('llm:event', ev);
+      },
     });
 
     return { streamId };
@@ -105,6 +107,10 @@ export function registerLlmIpc(deps: { skills: SkillStore }): void {
 
   ipcMain.handle('llm:abort', (_e, params: { streamId: string }) => {
     abortRun(params.streamId);
+  });
+
+  ipcMain.handle('llm:steer', (_e, params: LlmSteerParams) => {
+    steerRun(params.streamId, params.text);
   });
 
   ipcMain.handle('llm:listTools', () =>

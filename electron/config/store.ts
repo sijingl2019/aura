@@ -3,6 +3,7 @@ import type {
   DefaultModelRef,
   DifyKnowledgeConfig,
   FallbackChainEntry,
+  GatewayConfig,
   GeneralConfig,
   McpServerConfig,
   ProviderConfig,
@@ -92,13 +93,12 @@ function mergeBuiltins(settings: AppSettings): AppSettings {
   }
 
   const providers = Array.from(existing.values()).sort((a, b) => a.order - b.order);
+  // Spread `settings` first so fields not explicitly normalized below
+  // (general, webSearch, mcpServers, gateways, …) are preserved across reloads.
   return {
+    ...settings,
     providers,
-    defaultModel: settings.defaultModel,
-    fallbackChain: settings.fallbackChain,
-    difyKnowledge: settings.difyKnowledge,
     selectionToolbar: { ...DEFAULT_SELECTION_TOOLBAR, ...(settings.selectionToolbar ?? {}) },
-    shortcutsOverrides: settings.shortcutsOverrides,
   };
 }
 
@@ -260,6 +260,32 @@ export function getWebSearch(): WebSearchConfig | null {
 export function setWebSearch(config: WebSearchConfig | null): AppSettings {
   const current = load();
   current.webSearch = config ?? undefined;
+  save(current);
+  return current;
+}
+
+export function getGateways(): GatewayConfig[] {
+  return load().gateways ?? [];
+}
+
+export function resolveGateway(id: string): GatewayConfig | undefined {
+  return getGateways().find((g) => g.id === id);
+}
+
+export function upsertGateway(config: GatewayConfig): AppSettings {
+  const current = load();
+  if (!current.gateways) current.gateways = [];
+  const idx = current.gateways.findIndex((g) => g.id === config.id);
+  if (idx >= 0) current.gateways[idx] = config;
+  else current.gateways.push(config);
+  save(current);
+  return current;
+}
+
+export function deleteGateway(id: string): AppSettings {
+  const current = load();
+  if (!current.gateways) return current;
+  current.gateways = current.gateways.filter((g) => g.id !== id);
   save(current);
   return current;
 }

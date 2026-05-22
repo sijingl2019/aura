@@ -22,6 +22,8 @@ import { registerSettingsIpc } from './ipc/settings';
 import { registerSkillsIpc } from './ipc/skills';
 import { registerToolbarIpc } from './ipc/toolbarIpc';
 import { registerWorkspaceIpc } from './ipc/workspace';
+import { registerGatewayIpc } from './ipc/gateway';
+import { gatewayManager } from './gateway/manager';
 import { startBuiltinMcpServer } from './mcp/builtin-server';
 import { McpClientManager } from './mcp/client';
 import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
@@ -332,6 +334,12 @@ app.whenReady().then(async () => {
   registerToolbarIpc();
   registerQuickQuestionIpc();
 
+  // Multi-platform gateway: connect enabled IM bridges (飞书 / 钉钉) via their
+  // long-lived WebSocket clients. Failures per-gateway surface as status, not crashes.
+  gatewayManager.init(skills);
+  registerGatewayIpc();
+  void gatewayManager.startAll();
+
   createWindow();
   createTray();
   updateGlobalShortcuts();
@@ -354,6 +362,7 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   teardownSelectionIpc();
   void mcpManager.closeAll();
+  void gatewayManager.stopAll();
 });
 
 app.on('window-all-closed', () => {

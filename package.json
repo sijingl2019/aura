@@ -15,9 +15,14 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.1",
+    "@larksuiteoapi/node-sdk": "^1.65.0",
+    "@mariozechner/pi-agent-core": "0.60.0",
+    "@mariozechner/pi-ai": "0.60.0",
+    "@mariozechner/pi-coding-agent": "0.60.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^11.3.0",
     "clsx": "^2.1.1",
+    "dingtalk-stream": "^2.1.5",
     "openai": "^4.67.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -25,12 +30,9 @@
     "react-router-dom": "^6.27.0",
     "rehype-shiki": "^0.0.9",
     "remark-gfm": "^4.0.0",
-    "tailwind-merge": "^2.5.4",
-    "zustand": "^4.5.5",
     "selection-hook": "2.0.1",
-    "@mariozechner/pi-agent-core": "0.60.0",
-		"@mariozechner/pi-ai": "0.60.0",
-		"@mariozechner/pi-coding-agent": "0.60.0"
+    "tailwind-merge": "^2.5.4",
+    "zustand": "^4.5.5"
   },
   "build": {
     "appId": "com.qiko.aura",

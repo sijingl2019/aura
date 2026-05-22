@@ -30,6 +30,10 @@ export interface Conversation {
   provider?: string;
   createdAt: number;
   updatedAt: number;
+  // Origin of the conversation. Undefined / 'app' = created in the desktop UI.
+  // A gateway platform id ('lark' | 'dingtalk' | ...) marks an external chat
+  // bridged in through the multi-platform gateway, shown in its own sidebar group.
+  source?: string;
 }
 
 export interface Skill {
@@ -49,6 +53,10 @@ export type StreamEvent =
   | { type: 'tool_call_args'; streamId: string; id: string; delta: string }
   | { type: 'tool_call_end'; streamId: string; id: string }
   | { type: 'tool_result'; streamId: string; id: string; ok: boolean; preview: string }
+  // Steering: a user interjection injected mid-run. Emitted when the running
+  // agent actually consumes the message (after the current step), so the
+  // renderer can flush the in-flight assistant bubble before showing it.
+  | { type: 'steering'; streamId: string; text: string }
   | { type: 'done'; streamId: string; usage?: { input: number; output: number } }
   | { type: 'error'; streamId: string; message: string };
 
@@ -108,6 +116,11 @@ export interface LlmStreamParams {
   skillName?: string;
 }
 
+export interface LlmSteerParams {
+  streamId: string;
+  text: string;
+}
+
 export interface ToolInfo {
   name: string;
   description: string;
@@ -125,6 +138,7 @@ export interface MemoryAPI {
 export interface LlmAPI {
   stream: (params: LlmStreamParams) => Promise<{ streamId: string }>;
   abort: (params: { streamId: string }) => Promise<void>;
+  steer: (params: LlmSteerParams) => Promise<void>;
   onEvent: (cb: (event: StreamEvent) => void) => () => void;
   listTools: () => Promise<ToolInfo[]>;
 }
@@ -311,6 +325,54 @@ export interface WebSearchConfig {
   apiKey: string;
 }
 
+// ── Multi-platform gateway ──────────────────────────────────────────────────
+// Bridges external IM platforms (飞书/Lark, 钉钉/DingTalk, …) to the agent.
+// Both supported platforms use an outbound long-lived WebSocket connection, so
+// no public callback URL is required (desktop-friendly).
+export type GatewayPlatform = 'lark' | 'dingtalk';
+
+export interface GatewayConfig {
+  id: string;
+  platform: GatewayPlatform;
+  name: string;
+  enabled: boolean;
+  // Credentials. Both platforms authenticate with an app key + secret pair:
+  //   飞书:  appId = App ID,     appSecret = App Secret
+  //   钉钉:  appId = ClientId(AppKey), appSecret = ClientSecret(AppSecret)
+  appId: string;
+  appSecret: string;
+  // Authorization: only these external user ids may trigger the agent.
+  // Empty array = deny everyone (safe default — a misconfigured bot does nothing).
+  allowedUserIds: string[];
+  // Per-gateway model override; falls back to the global defaultModel when unset.
+  defaultModel?: DefaultModelRef;
+  // When false (default), exec_shell / write_file are stripped from gateway
+  // runs so a remote IM user cannot drive the local shell or filesystem.
+  allowDangerousTools?: boolean;
+}
+
+export type GatewayStatus = 'stopped' | 'connecting' | 'connected' | 'error';
+
+export interface GatewayRuntimeStatus {
+  id: string;
+  status: GatewayStatus;
+  detail?: string;
+}
+
+export interface GatewayListItem {
+  config: GatewayConfig;
+  status: GatewayRuntimeStatus;
+}
+
+export interface GatewayAPI {
+  list: () => Promise<GatewayListItem[]>;
+  upsert: (config: GatewayConfig) => Promise<AppSettings>;
+  delete: (params: { id: string }) => Promise<AppSettings>;
+  start: (params: { id: string }) => Promise<void>;
+  stop: (params: { id: string }) => Promise<void>;
+  onStatus: (cb: (status: GatewayRuntimeStatus) => void) => () => void;
+}
+
 export interface AppSettings {
   providers: ProviderConfig[];
   defaultModel?: DefaultModelRef;
@@ -321,6 +383,7 @@ export interface AppSettings {
   mcpServers?: McpServerConfig[];
   general?: GeneralConfig;
   webSearch?: WebSearchConfig;
+  gateways?: GatewayConfig[];
 }
 
 export type ProviderConfigInput = Omit<ProviderConfig, 'builtin' | 'order'> &
@@ -392,6 +455,7 @@ export interface ElectronAPI {
   quickQuestion: QuickQuestionAPI;
   shortcuts: ShortcutsAPI;
   workspace: WorkspaceAPI;
+  gateway: GatewayAPI;
 }
 
 declare global {

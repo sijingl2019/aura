@@ -5,6 +5,9 @@ import type {
   DefaultModelRef,
   DifyKnowledgeConfig,
   FallbackChainEntry,
+  GatewayConfig,
+  GatewayListItem,
+  GatewayRuntimeStatus,
   GeneralConfig,
   McpServerConfig,
   ProviderConfig,
@@ -40,8 +43,15 @@ interface SettingsState {
   mcpServers: McpServerConfig[];
   general: GeneralConfig;
   webSearch?: WebSearchConfig;
+  gateways: GatewayListItem[];
 
   load: () => Promise<void>;
+  loadGateways: () => Promise<void>;
+  upsertGateway: (config: GatewayConfig) => Promise<void>;
+  deleteGateway: (id: string) => Promise<void>;
+  startGateway: (id: string) => Promise<void>;
+  stopGateway: (id: string) => Promise<void>;
+  applyGatewayStatus: (status: GatewayRuntimeStatus) => void;
   upsertProvider: (provider: ProviderConfigInput) => Promise<void>;
   deleteProvider: (id: string) => Promise<void>;
   setDefaultModel: (ref: DefaultModelRef | null) => Promise<void>;
@@ -86,11 +96,48 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   mcpServers: [],
   general: DEFAULT_GENERAL,
   webSearch: undefined,
+  gateways: [],
 
   load: async () => {
     const data = await window.api.settings.get();
     apply(set, data);
   },
+
+  loadGateways: async () => {
+    const gateways = await window.api.gateway.list();
+    set({ gateways });
+  },
+
+  upsertGateway: async (config) => {
+    await window.api.gateway.upsert(config);
+    const gateways = await window.api.gateway.list();
+    set({ gateways });
+  },
+
+  deleteGateway: async (id) => {
+    await window.api.gateway.delete({ id });
+    const gateways = await window.api.gateway.list();
+    set({ gateways });
+  },
+
+  startGateway: async (id) => {
+    await window.api.gateway.start({ id });
+    const gateways = await window.api.gateway.list();
+    set({ gateways });
+  },
+
+  stopGateway: async (id) => {
+    await window.api.gateway.stop({ id });
+    const gateways = await window.api.gateway.list();
+    set({ gateways });
+  },
+
+  applyGatewayStatus: (status) =>
+    set((state) => ({
+      gateways: state.gateways.map((g) =>
+        g.config.id === status.id ? { ...g, status } : g,
+      ),
+    })),
 
   upsertProvider: async (provider) => {
     const data = await window.api.settings.upsertProvider(provider);

@@ -60,6 +60,20 @@ const MIGRATIONS: Migration[] = [
     version: 6,
     sql: `ALTER TABLE conversations ADD COLUMN system_prompt TEXT;`,
   },
+  {
+    version: 7,
+    sql: `
+      ALTER TABLE conversations ADD COLUMN source TEXT;
+
+      CREATE TABLE IF NOT EXISTS gateway_chats (
+        platform TEXT NOT NULL,
+        external_chat_id TEXT NOT NULL,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (platform, external_chat_id)
+      );
+    `,
+  },
 ];
 
 let db: Database.Database | null = null;

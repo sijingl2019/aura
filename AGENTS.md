@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Commands
 
@@ -116,7 +116,7 @@ Use `server.registerTool(name, {description, inputSchema}, cb)` — the older `s
 
 ### Skills
 
-Claude-Code-style skills: scan `userData/skills/<id>/SKILL.md` + `resourcesPath/skills/<id>/SKILL.md`, parse frontmatter (simple regex, no `gray-matter` dep), require `name` and `description`. When a conversation is sent with `skillId`, the agent prepends `skill.body` to the system message for that turn. Skills are **not** exposed to the model as tools — system-prompt injection only.
+Codex-style skills: scan `userData/skills/<id>/SKILL.md` + `resourcesPath/skills/<id>/SKILL.md`, parse frontmatter (simple regex, no `gray-matter` dep), require `name` and `description`. When a conversation is sent with `skillId`, the agent prepends `skill.body` to the system message for that turn. Skills are **not** exposed to the model as tools — system-prompt injection only.
 
 ### Persistence invariants
 
@@ -163,22 +163,6 @@ A frameless, transparent, always-on-top floating window opened via global shortc
 Frameless, transparent, `focusable: false` window shown near selected text. Managed by [electron/windows/toolbarWindow.ts](electron/windows/toolbarWindow.ts).
 
 **Deduplication invariant**: `hideToolbar()` uses `win.hide()` (synchronous), NOT `win.close()`. Using `close()` was a race condition — `toolbarWindow` was nulled immediately but the async `closed` event fires later; a new text-selection between the two created a second window. The single `toolbarWindow` instance is reused across selections; only `destroyToolbar()` (called from `syncSelectionConfig` when feature is disabled and from `teardownSelectionIpc` on quit) actually destroys it.
-
-### Multi-platform gateway
-
-Bridges external IM platforms to the agent. Phase 0 + 飞书/Lark + 钉钉/DingTalk are implemented; both use an **outbound long-lived WebSocket** (no public callback URL — desktop-friendly).
-
-**Decoupling**: [electron/agent/runtime.ts](electron/agent/runtime.ts) `run()` takes a `send: (StreamEvent) => void` sink (not `webContents`) plus an optional `toolFilter`. The Electron path ([electron/ipc/llm.ts](electron/ipc/llm.ts)) wraps `webContents.send('llm:event', …)`; the gateway path supplies its own sink. **Do not re-couple `run()` to Electron.**
-
-**Subsystem** ([electron/gateway/](electron/gateway/)): `GatewayConnector` (per-platform WS client, normalizes inbound to `InboundMessage`, hands out `OutboundReply` per chat) → `manager.ts` (`gatewayManager` singleton: lifecycle, status, hot-restart on config change, broadcasts `gateway:status` to renderers) → `router.ts` (`handleInbound`: enforces the per-gateway **user allow-list**, resolves provider/model (per-gateway `defaultModel` → global), maps chat→conversation, runs the agent) → `sink.ts` (`GatewaySink`: throttles fine-grained StreamEvents into whole-message edits, ~1s cadence, final flush on `done`).
-
-**Security**: gateway runs strip `exec_shell`/`write_file` by default via `gatewayToolFilter` ([tool-policy.ts](electron/gateway/tool-policy.ts)) unless `allowDangerousTools`. Empty `allowedUserIds` denies everyone (safe default).
-
-**Connector specifics**: 飞书 supports editing text messages (streaming edits); 钉钉 group robots **cannot edit** — `DingTalkReply` sends only on the final render, via the per-message `sessionWebhook`. SDKs (`@larksuiteoapi/node-sdk`, `dingtalk-stream`) are loaded with a **computed-string dynamic `import()`** so they stay `any`-typed (no @types needed) and a missing dep surfaces as a gateway error status, not a build failure — keep it that way.
-
-**Data model**: migration v7 adds `conversations.source` (platform id; sidebar groups these under 网关会话) + `gateway_chats(platform, external_chat_id) → conversation_id`. `getOrCreateGatewayConversation()` in [repo.ts](electron/db/repo.ts) resolves the binding. Gateway conversations are `is_system = 0`, so they appear in `listConversations` (intentionally, unlike quick-question system conversations).
-
-**Config/IPC**: `AppSettings.gateways: GatewayConfig[]`; CRUD in [config/store.ts](electron/config/store.ts); IPC `gateway:{list,upsert,delete,start,stop}` + `gateway:status` event ([electron/ipc/gateway.ts](electron/ipc/gateway.ts)). UI: Settings → 多平台网关 ([src/components/Settings/GatewaySection.tsx](src/components/Settings/GatewaySection.tsx)). `mergeBuiltins()` now spreads `…settings` so non-normalized keys (gateways/general/webSearch/mcpServers) survive reloads.
 
 ## Conventions
 

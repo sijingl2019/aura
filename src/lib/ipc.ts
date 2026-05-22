@@ -45,6 +45,43 @@ async function handleEvent(event: StreamEvent): Promise<void> {
     case 'error':
       streaming.setError(event.message);
       break;
+    case 'steering': {
+      // The agent consumed a mid-run interjection. Commit the in-flight assistant
+      // draft as a finalized bubble, then append the user's steering bubble, so the
+      // chat reads in order before the next turn streams into a fresh draft. These
+      // optimistic rows are replaced by the real DB rows on `done`.
+      const cid = streaming.conversationId;
+      if (cid) {
+        const convStore = useConversationsStore.getState();
+        const current = convStore.messages[cid] ?? [];
+        const next: ChatMessage[] = [...current];
+        if (streaming.text || streaming.thinking || streaming.toolCalls.length > 0) {
+          next.push({
+            id: `__steer_flush_${Date.now()}`,
+            conversationId: cid,
+            role: 'assistant',
+            content: streaming.text,
+            thinking: streaming.thinking || undefined,
+            toolCalls: streaming.toolCalls.map((c) => ({
+              id: c.id,
+              name: c.name,
+              arguments: c.arguments,
+            })),
+            createdAt: Date.now(),
+          });
+        }
+        next.push({
+          id: `__steer_user_${Date.now()}`,
+          conversationId: cid,
+          role: 'user',
+          content: event.text,
+          createdAt: Date.now(),
+        });
+        convStore.replaceMessages(cid, next);
+      }
+      streaming.flushForSteer();
+      break;
+    }
     case 'done': {
       const conversationId = streaming.conversationId;
       streaming.reset();
@@ -89,4 +126,13 @@ export async function abortStream(): Promise<void> {
   const { streamId } = useStreamingStore.getState();
   if (!streamId) return;
   await window.api.llm.abort({ streamId });
+}
+
+/** Inject a steering message into the currently-running agent. The interjection
+ *  is delivered after the agent finishes its current step (tool batch / turn). */
+export async function steerStream(text: string): Promise<void> {
+  const trimmed = text.trim();
+  const { streamId } = useStreamingStore.getState();
+  if (!trimmed || !streamId) return;
+  await window.api.llm.steer({ streamId, text: trimmed });
 }

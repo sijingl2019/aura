@@ -11,6 +11,7 @@ interface ConversationRow {
   created_at: number;
   updated_at: number;
   is_system: number;
+  source?: string | null;
 }
 
 interface MessageRow {
@@ -37,6 +38,7 @@ function mapConversation(row: ConversationRow): Conversation {
     provider: (row.provider as Conversation['provider']) ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    source: row.source ?? undefined,
   };
 }
 
@@ -94,6 +96,57 @@ export function getOrCreateSystemConversation(): Conversation {
     'INSERT INTO conversations (id, title, model, provider, created_at, updated_at, is_system) VALUES (?, ?, ?, ?, ?, ?, 1)',
   ).run(id, '快速提问', null, null, now, now);
   return mapConversation({ id, title: '快速提问', model: null, provider: null, created_at: now, updated_at: now, is_system: 1 });
+}
+
+/**
+ * Resolve (creating on first contact) the conversation bound to an external
+ * IM chat. The (platform, externalChatId) pair maps 1:1 to a conversation via
+ * the gateway_chats table; the conversation itself is a normal is_system=0 row
+ * tagged with `source = platform` so the sidebar can group it separately.
+ */
+export function getOrCreateGatewayConversation(
+  platform: string,
+  externalChatId: string,
+  title?: string,
+): Conversation {
+  const db = getDb();
+  const binding = db
+    .prepare('SELECT conversation_id FROM gateway_chats WHERE platform = ? AND external_chat_id = ?')
+    .get(platform, externalChatId) as { conversation_id: string } | undefined;
+  if (binding) {
+    const row = db
+      .prepare('SELECT * FROM conversations WHERE id = ?')
+      .get(binding.conversation_id) as ConversationRow | undefined;
+    if (row) return mapConversation(row);
+    // Binding dangling (conversation deleted) — fall through to recreate.
+    db.prepare('DELETE FROM gateway_chats WHERE platform = ? AND external_chat_id = ?').run(
+      platform,
+      externalChatId,
+    );
+  }
+
+  const now = Date.now();
+  const id = randomUUID();
+  const convTitle = title?.trim() || `${platform} 对话`;
+  const tx = db.transaction(() => {
+    db.prepare(
+      'INSERT INTO conversations (id, title, model, provider, created_at, updated_at, is_system, source) VALUES (?, ?, ?, ?, ?, ?, 0, ?)',
+    ).run(id, convTitle, null, null, now, now, platform);
+    db.prepare(
+      'INSERT INTO gateway_chats (platform, external_chat_id, conversation_id, created_at) VALUES (?, ?, ?, ?)',
+    ).run(platform, externalChatId, id, now);
+  });
+  tx();
+  return mapConversation({
+    id,
+    title: convTitle,
+    model: null,
+    provider: null,
+    created_at: now,
+    updated_at: now,
+    is_system: 0,
+    source: platform,
+  });
 }
 
 export function deleteConversation(id: string): void {

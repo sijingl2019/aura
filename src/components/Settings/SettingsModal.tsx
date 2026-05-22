@@ -4,6 +4,7 @@ import { useUiStore } from '@/stores/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { DefaultModelSection } from './DefaultModelSection';
 import { FallbackChainSection } from './FallbackChainSection';
+import { GatewaySection } from './GatewaySection';
 import { GeneralSection } from './GeneralSection';
 import { KeyboardShortcutsSection } from './KeyboardShortcutsSection';
 import { KnowledgeSection } from './KnowledgeSection';
@@ -155,6 +156,14 @@ export function SettingsModal() {
             >
               <WebSearchIcon />
             </SidebarItem>
+            <SidebarItem
+              label="多平台网关"
+              active={section === 'gateway'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('gateway')}
+            >
+              <GatewayIcon />
+            </SidebarItem>
           </div>
           <button
             type="button"
@@ -182,6 +191,7 @@ export function SettingsModal() {
         {section === 'mcp' && <McpSection />}
         {section === 'general' && <GeneralSection />}
         {section === 'web-search' && <WebSearchSection />}
+        {section === 'gateway' && <GatewaySection />}
 
         <button
           type="button"
@@ -422,6 +432,17 @@ function WebSearchIcon() {
       <circle cx="7.5" cy="7.5" r="4.5" />
       <path d="M13.5 13.5l-2.5-2.5" />
       <path d="M7.5 5v5M5 7.5h5" />
+    </svg>
+  );
+}
+
+function GatewayIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="4" cy="9" r="2" />
+      <circle cx="14" cy="4.5" r="2" />
+      <circle cx="14" cy="13.5" r="2" />
+      <path d="M6 8l6-3M6 10l6 3" />
     </svg>
   );
 }

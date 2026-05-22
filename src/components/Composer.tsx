@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { DefaultModelRef, SkillListItem, WorkspaceFile } from '@shared/types';
-import { abortStream, sendMessage } from '@/lib/ipc';
+import { abortStream, sendMessage, steerStream } from '@/lib/ipc';
 import { useStreamingStore } from '@/stores/streaming';
 import { useConversationsStore } from '@/stores/conversations';
 import { useSettingsStore } from '@/stores/settings';
@@ -56,6 +56,7 @@ export function Composer({ conversationId, onNeedConversation, onNewConversation
   const [skillHighlight, setSkillHighlight] = useState(0);
   const [pendingModel, setPendingModel] = useState<DefaultModelRef | null>(null);
   const [cmdOutput, setCmdOutput] = useState<{ title: string; body: string } | null>(null);
+  const [steerHint, setSteerHint] = useState(false);
 
   const [cwd, setCwd] = useState('');
   const [filePickerOpen, setFilePickerOpen] = useState(false);
@@ -94,6 +95,7 @@ export function Composer({ conversationId, onNeedConversation, onNewConversation
   useEffect(() => {
     if (prevStreamingRef.current && !isStreaming) {
       textareaRef.current?.focus();
+      setSteerHint(false);
     }
     prevStreamingRef.current = isStreaming;
   }, [isStreaming]);
@@ -257,6 +259,17 @@ export function Composer({ conversationId, onNeedConversation, onNewConversation
     });
   };
 
+  // ── Steer (interject while the agent is running) ────────────────────────────
+  const handleSteer = async () => {
+    const text = input.trim();
+    if (!text || !isStreaming) return;
+    setInput('');
+    closeSkillPicker();
+    closeFilePicker();
+    setSteerHint(true);
+    await steerStream(text);
+  };
+
   // ── Input handler ─────────────────────────────────────────────────────────
   const handleInput = (value: string) => {
     setInput(value);
@@ -305,7 +318,8 @@ export function Composer({ conversationId, onNeedConversation, onNewConversation
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (isStreaming) handleSteer();
+      else handleSend();
     }
   };
 
@@ -463,23 +477,39 @@ export function Composer({ conversationId, onNeedConversation, onNewConversation
             value={input}
             onChange={(e) => handleInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isStreaming ? '生成中…' : '输入 / 触发 skill，@ 引用文件，或直接发送消息'}
+            placeholder={isStreaming ? '插话引导 agent…（Enter 发送）' : '输入 / 触发 skill，@ 引用文件，或直接发送消息'}
             rows={2}
-            disabled={isStreaming}
             className="w-full resize-none bg-transparent text-sm text-ink placeholder:text-ink-subtle focus:outline-none disabled:opacity-60"
           />
           <div className="mt-4 flex items-center justify-between text-ink-subtle">
             <span className="text-[11px] text-ink-subtle">
-              {isStreaming ? '回车新行时暂停，点击停止可中断' : anyPickerOpen ? '↑↓ 导航 · Enter 选择 · Esc 关闭' : 'Enter 发送，Shift+Enter 换行'}
+              {isStreaming
+                ? steerHint
+                  ? '插话已发送，将在当前步骤后送达 agent'
+                  : '生成中 · Enter 插话引导，点击停止可中断'
+                : anyPickerOpen
+                  ? '↑↓ 导航 · Enter 选择 · Esc 关闭'
+                  : 'Enter 发送，Shift+Enter 换行'}
             </span>
             {isStreaming ? (
-              <button
-                type="button"
-                onClick={() => abortStream()}
-                className="rounded-md bg-red-500/10 px-3 py-1 text-xs text-red-500 hover:bg-red-500/20"
-              >
-                停止
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSteer}
+                  disabled={!input.trim()}
+                  className="rounded-md bg-accent px-3 py-1 text-xs text-white hover:opacity-90 disabled:opacity-40"
+                  title="插话引导正在运行的 agent"
+                >
+                  插话
+                </button>
+                <button
+                  type="button"
+                  onClick={() => abortStream()}
+                  className="rounded-md bg-red-500/10 px-3 py-1 text-xs text-red-500 hover:bg-red-500/20"
+                >
+                  停止
+                </button>
+              </div>
             ) : (
               <button
                 type="button"

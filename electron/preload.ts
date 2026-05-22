@@ -8,6 +8,9 @@ import type {
   DifyKnowledge,
   DifyKnowledgeConfig,
   FallbackChainEntry,
+  GatewayConfig,
+  GatewayListItem,
+  GatewayRuntimeStatus,
   GeneralConfig,
   LlmStreamParams,
   McpServerConfig,
@@ -65,6 +68,8 @@ const api = {
       ipcRenderer.invoke('llm:stream', params) as Promise<{ streamId: string }>,
     abort: (params: { streamId: string }) =>
       ipcRenderer.invoke('llm:abort', params) as Promise<void>,
+    steer: (params: { streamId: string; text: string }) =>
+      ipcRenderer.invoke('llm:steer', params) as Promise<void>,
     onEvent: (cb: (event: StreamEvent) => void) => {
       const listener = (_: unknown, event: StreamEvent) => cb(event);
       ipcRenderer.on('llm:event', listener);
@@ -183,6 +188,20 @@ const api = {
       ipcRenderer.invoke('shortcuts:set', params) as Promise<ShortcutDef[]>,
     reset: (params: { id: string }) =>
       ipcRenderer.invoke('shortcuts:reset', params) as Promise<ShortcutDef[]>,
+  },
+  gateway: {
+    list: () => ipcRenderer.invoke('gateway:list') as Promise<GatewayListItem[]>,
+    upsert: (config: GatewayConfig) =>
+      ipcRenderer.invoke('gateway:upsert', config) as Promise<AppSettings>,
+    delete: (params: { id: string }) =>
+      ipcRenderer.invoke('gateway:delete', params) as Promise<AppSettings>,
+    start: (params: { id: string }) => ipcRenderer.invoke('gateway:start', params) as Promise<void>,
+    stop: (params: { id: string }) => ipcRenderer.invoke('gateway:stop', params) as Promise<void>,
+    onStatus: (cb: (status: GatewayRuntimeStatus) => void) => {
+      const listener = (_: unknown, status: GatewayRuntimeStatus) => cb(status);
+      ipcRenderer.on('gateway:status', listener);
+      return () => ipcRenderer.off('gateway:status', listener);
+    },
   },
 };
 

@@ -36,6 +36,42 @@ export function Sidebar({ onSelect }: SidebarProps) {
     setPendingDelete(null);
   };
 
+  const GATEWAY_LABELS: Record<string, string> = { lark: '飞书', dingtalk: '钉钉' };
+  const regular = list.filter((c) => !c.source || c.source === 'app');
+  const gateway = list.filter((c) => c.source && c.source !== 'app');
+
+  const renderItem = (c: (typeof list)[number]) => (
+    <li key={c.id}>
+      <button
+        type="button"
+        onClick={() => handleSelect(c.id)}
+        className={
+          'group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ' +
+          (activeId === c.id
+            ? 'bg-surface text-ink shadow-sm'
+            : 'text-ink-muted hover:bg-surface-sunken')
+        }
+      >
+        <span className="flex min-w-0 items-center gap-1.5">
+          {c.source && c.source !== 'app' && (
+            <span className="shrink-0 rounded bg-accent/10 px-1 text-[10px] text-accent">
+              {GATEWAY_LABELS[c.source] ?? c.source}
+            </span>
+          )}
+          <span className="truncate">{c.title}</span>
+        </span>
+        <span
+          role="button"
+          onClick={(e) => handleDelete(e, c.id, c.title)}
+          className="ml-2 hidden shrink-0 rounded px-1 text-xs text-ink-subtle hover:bg-red-500/10 hover:text-red-500 group-hover:inline"
+          title="删除"
+        >
+          ×
+        </span>
+      </button>
+    </li>
+  );
+
   return (
     <>
       <aside className="flex w-[260px] shrink-0 flex-col bg-surface-muted px-3 py-4">
@@ -51,32 +87,15 @@ export function Sidebar({ onSelect }: SidebarProps) {
           {list.length === 0 && (
             <div className="mt-2 text-xs text-ink-subtle">暂无对话</div>
           )}
-          <ul className="flex flex-col gap-1">
-            {list.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => handleSelect(c.id)}
-                  className={
-                    'group flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ' +
-                    (activeId === c.id
-                      ? 'bg-surface text-ink shadow-sm'
-                      : 'text-ink-muted hover:bg-surface-sunken')
-                  }
-                >
-                  <span className="truncate">{c.title}</span>
-                  <span
-                    role="button"
-                    onClick={(e) => handleDelete(e, c.id, c.title)}
-                    className="ml-2 hidden shrink-0 rounded px-1 text-xs text-ink-subtle hover:bg-red-500/10 hover:text-red-500 group-hover:inline"
-                    title="删除"
-                  >
-                    ×
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <ul className="flex flex-col gap-1">{regular.map(renderItem)}</ul>
+          {gateway.length > 0 && (
+            <>
+              <div className="mb-1 mt-4 px-3 text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+                网关会话
+              </div>
+              <ul className="flex flex-col gap-1">{gateway.map(renderItem)}</ul>
+            </>
+          )}
         </div>
       </aside>
       {pendingDelete && (

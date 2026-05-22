@@ -21,6 +21,10 @@ interface StreamingState {
   toolCallEnd: (id: string) => void;
   toolResult: (id: string, ok: boolean, preview: string) => void;
   setError: (message: string) => void;
+  /** Clear the in-flight assistant draft but keep the stream active. Used when a
+   *  steering interjection lands mid-run: the prior draft is committed to the
+   *  message list by the caller, then the next turn streams into a fresh draft. */
+  flushForSteer: () => void;
   reset: () => void;
 }
 
@@ -65,6 +69,8 @@ export const useStreamingStore = create<StreamingState>((set) => ({
     })),
 
   setError: (message) => set({ error: message }),
+
+  flushForSteer: () => set({ text: '', thinking: '', toolCalls: [] }),
 
   reset: () =>
     set({ streamId: null, conversationId: null, text: '', thinking: '', toolCalls: [], error: null }),

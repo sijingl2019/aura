@@ -4,7 +4,6 @@ import path from 'node:path';
 import { Agent } from '@mariozechner/pi-agent-core';
 import type { AgentEvent } from '@mariozechner/pi-agent-core';
 import { streamSimple } from '@mariozechner/pi-ai';
-import type { WebContents } from 'electron';
 import type { FallbackChainEntry, ProviderConfig, StreamEvent } from '@shared/types';
 import {
   appendMessage,
@@ -123,13 +122,37 @@ interface RunParams {
   providerCfg: ProviderConfig;
   modelId: string;
   skills: SkillStore;
-  webContents: WebContents;
+  /** Sink for streaming events. Electron supplies a webContents.send wrapper;
+   *  the gateway supplies a sink that posts back to the IM platform. */
+  send: (event: StreamEvent) => void;
+  /** Optional allow-predicate for tools. When provided, only tools whose name
+   *  passes are exposed to the model this run (used to strip dangerous tools
+   *  from externally-triggered gateway runs). */
+  toolFilter?: (name: string) => boolean;
 }
 
-const activeAgents = new Map<string, Agent>();
+/** A steering message we injected, kept by identity so we can recognize and
+ *  persist it when the agent loop emits its message_end event. */
+interface SteerMsg {
+  role: 'user';
+  content: string;
+  timestamp: number;
+}
+
+interface StreamController {
+  abort: () => void;
+  /** Queue a user interjection (steering) into the running agent. */
+  steer: (text: string) => void;
+}
+
+const controllers = new Map<string, StreamController>();
 
 export function abortRun(streamId: string): void {
-  activeAgents.get(streamId)?.abort();
+  controllers.get(streamId)?.abort();
+}
+
+export function steerRun(streamId: string, text: string): void {
+  controllers.get(streamId)?.steer(text);
 }
 
 export async function run(params: RunParams): Promise<void> {
@@ -143,12 +166,9 @@ export async function run(params: RunParams): Promise<void> {
     providerCfg,
     modelId,
     skills,
-    webContents,
+    send,
+    toolFilter,
   } = params;
-
-  const send = (event: StreamEvent) => {
-    if (!webContents.isDestroyed()) webContents.send('llm:event', event);
-  };
 
   // Sync prefix: persist user message before any await so a crash won't lose it
   const history = listMessages(conversationId);
@@ -212,7 +232,9 @@ export async function run(params: RunParams): Promise<void> {
     systemPrompt = [freshSystemPrompt, summary].filter(Boolean).join('\n\n');
   }
 
-  const agentTools = listTools().map((t) => toAgentTool(t, cwd));
+  const agentTools = listTools()
+    .filter((t) => (toolFilter ? toolFilter(t.name) : true))
+    .map((t) => toAgentTool(t, cwd));
   // Pass history captured BEFORE the new user message — agent.prompt() adds it
   const existingMessages = chatMessagesToAgent(workingHistory);
 
@@ -258,6 +280,22 @@ export async function run(params: RunParams): Promise<void> {
   // fragment buffered mid-continuation can still be flushed after the loop.
   let pendingAssistant: { text: string; thinking: string } | null = null;
   let activeModelId = modelId;
+
+  // Steering: the agent reference is rebuilt per fallback attempt, so the
+  // controller closes over a mutable ref. Steering messages are tracked by
+  // identity so we can persist them when the loop emits their message_end.
+  let activeAgent: Agent | null = null;
+  const steeringMessages = new WeakSet<object>();
+  controllers.set(streamId, {
+    abort: () => activeAgent?.abort(),
+    steer: (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || !activeAgent) return;
+      const msg: SteerMsg = { role: 'user', content: trimmed, timestamp: Date.now() };
+      steeringMessages.add(msg);
+      activeAgent.steer(msg);
+    },
+  });
 
   const maxRounds = AGENT_LIMITS.maxToolRounds;
 
@@ -334,10 +372,24 @@ export async function run(params: RunParams): Promise<void> {
       },
     });
 
-    activeAgents.set(streamId, agent);
+    activeAgent = agent;
 
     const unsubscribe = agent.subscribe((event: AgentEvent) => {
       switch (event.type) {
+        case 'message_end': {
+          // Steering messages are injected by the loop as standalone user
+          // messages (no turn_end). Persist them here so reloaded history shows
+          // the interjection, and tell the renderer to flush the in-flight
+          // assistant bubble before rendering the user's steering bubble.
+          const msg = event.message as { role?: string; content?: unknown };
+          if (msg.role === 'user' && steeringMessages.has(event.message as object)) {
+            const text = typeof msg.content === 'string' ? msg.content : '';
+            appendMessage({ conversationId, role: 'user', content: text });
+            send({ type: 'steering', streamId, text });
+          }
+          break;
+        }
+
         case 'message_update': {
           const ae = event.assistantMessageEvent;
           if (ae.type === 'text_delta') {
@@ -518,7 +570,7 @@ export async function run(params: RunParams): Promise<void> {
       }
     } finally {
       unsubscribe();
-      activeAgents.delete(streamId);
+      activeAgent = null;
     }
   }
 
@@ -549,6 +601,7 @@ export async function run(params: RunParams): Promise<void> {
       isError: true,
     });
   }
+  controllers.delete(streamId);
   safeSendDone();
 }
 
