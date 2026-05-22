@@ -26,6 +26,7 @@ import { startBuiltinMcpServer } from './mcp/builtin-server';
 import { McpClientManager } from './mcp/client';
 import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
 import { SkillStore } from './skills/loader';
+import { createSkillsTools } from './skills/tools';
 import { registerTools } from './tools/registry';
 import { initMemoryStore } from './memory/store';
 import { createMemoryTools } from './memory/tools';
@@ -264,6 +265,7 @@ app.whenReady().then(async () => {
 
   const skills = new SkillStore([userSkillsDir], [resourceSkillsDir]);
   await skills.reload();
+  registerTools(createSkillsTools(skills));
 
   // Watch for file system changes in userSkillsDir and auto-reload
   let reloadTimer: ReturnType<typeof setTimeout> | null = null;
