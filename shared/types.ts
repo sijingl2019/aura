@@ -288,6 +288,14 @@ export interface FallbackChainEntry {
   modelId: string;
 }
 
+export type WebSearchProvider = 'tavily' | 'serper';
+
+export interface WebSearchConfig {
+  enabled: boolean;
+  provider: WebSearchProvider;
+  apiKey: string;
+}
+
 export interface AppSettings {
   providers: ProviderConfig[];
   defaultModel?: DefaultModelRef;
@@ -297,6 +305,7 @@ export interface AppSettings {
   shortcutsOverrides?: Record<string, string>;
   mcpServers?: McpServerConfig[];
   general?: GeneralConfig;
+  webSearch?: WebSearchConfig;
 }
 
 export type ProviderConfigInput = Omit<ProviderConfig, 'builtin' | 'order'> &
@@ -317,6 +326,7 @@ export interface SettingsAPI {
   getGeneral: () => Promise<GeneralConfig>;
   setGeneral: (config: GeneralConfig) => Promise<AppSettings>;
   detectProvider: (params: { kind: ProviderKind; apiKey: string; baseURL: string }) => Promise<{ success: boolean; message: string }>;
+  setWebSearch: (params: WebSearchConfig | null) => Promise<AppSettings>;
 }
 
 export interface WorkspaceFile {

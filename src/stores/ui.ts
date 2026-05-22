@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type SettingsSection = 'providers' | 'default-model' | 'fallback' | 'knowledge' | 'selection' | 'shortcuts' | 'skills' | 'mcp' | 'general';
+export type SettingsSection = 'providers' | 'default-model' | 'fallback' | 'knowledge' | 'selection' | 'shortcuts' | 'skills' | 'mcp' | 'general' | 'web-search';
 
 interface UiState {
   chatWideMode: boolean;

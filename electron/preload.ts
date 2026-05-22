@@ -21,6 +21,7 @@ import type {
   SkillListItem,
   StreamEvent,
   ToolbarParams,
+  WebSearchConfig,
   WorkspaceFile,
 } from '@shared/types';
 
@@ -112,6 +113,8 @@ const api = {
       ipcRenderer.invoke('settings:getGeneral') as Promise<GeneralConfig>,
     detectProvider: (params: { kind: string; apiKey: string; baseURL: string }) =>
       ipcRenderer.invoke('settings:detectProvider', params) as Promise<{ success: boolean; message: string }>,
+    setWebSearch: (params: WebSearchConfig | null) =>
+      ipcRenderer.invoke('settings:setWebSearch', params) as Promise<AppSettings>,
   },
   popup: {
     open: (params: { action: string; text: string; screenX: number; screenY: number }) =>

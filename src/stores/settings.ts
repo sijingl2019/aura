@@ -11,6 +11,7 @@ import type {
   ProviderConfigInput,
   SelectionToolbarConfig,
   ShortcutDef,
+  WebSearchConfig,
 } from '@shared/types';
 import { create } from 'zustand';
 
@@ -38,6 +39,7 @@ interface SettingsState {
   shortcuts: ShortcutDef[];
   mcpServers: McpServerConfig[];
   general: GeneralConfig;
+  webSearch?: WebSearchConfig;
 
   load: () => Promise<void>;
   upsertProvider: (provider: ProviderConfigInput) => Promise<void>;
@@ -53,6 +55,7 @@ interface SettingsState {
   upsertMcpServer: (server: McpServerConfig) => Promise<void>;
   deleteMcpServer: (id: string) => Promise<void>;
   setGeneral: (config: GeneralConfig) => Promise<void>;
+  setWebSearch: (config: WebSearchConfig | null) => Promise<void>;
 }
 
 function apply(set: (partial: Partial<SettingsState>) => void, next: AppSettings) {
@@ -68,6 +71,7 @@ function apply(set: (partial: Partial<SettingsState>) => void, next: AppSettings
     selectionToolbar: next.selectionToolbar,
     mcpServers: next.mcpServers ?? [],
     general,
+    webSearch: next.webSearch,
   });
 }
 
@@ -81,6 +85,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   shortcuts: [],
   mcpServers: [],
   general: DEFAULT_GENERAL,
+  webSearch: undefined,
 
   load: async () => {
     const data = await window.api.settings.get();
@@ -149,6 +154,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 
   setGeneral: async (config) => {
     const data = await window.api.settings.setGeneral(config);
+    apply(set, data);
+  },
+
+  setWebSearch: async (config) => {
+    const data = await window.api.settings.setWebSearch(config);
     apply(set, data);
   },
 }));

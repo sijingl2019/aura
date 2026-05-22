@@ -7,6 +7,7 @@ import type {
   McpServerConfig,
   ProviderConfigInput,
   SelectionToolbarConfig,
+  WebSearchConfig,
 } from '@shared/types';
 import { ipcMain } from 'electron';
 import {
@@ -24,6 +25,7 @@ import {
   setGeneralConfig,
   setSelectionToolbar,
   setShortcutOverride,
+  setWebSearch,
   upsertMcpServer,
   upsertProvider,
 } from '../config/store';
@@ -148,6 +150,10 @@ export function registerSettingsIpc(callbacks?: SettingsIpcCallbacks): void {
     callbacks?.onShortcutsChanged?.();
     return result;
   });
+
+  ipcMain.handle('settings:setWebSearch', (_e, params: WebSearchConfig | null) =>
+    setWebSearch(params),
+  );
 
   ipcMain.handle(
     'settings:detectProvider',

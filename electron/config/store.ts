@@ -10,6 +10,7 @@ import type {
   SelectionAction,
   SelectionToolbarConfig,
   ShortcutDef,
+  WebSearchConfig,
 } from '@shared/types';
 import { app } from 'electron';
 import fs from 'node:fs';
@@ -248,6 +249,17 @@ export function deleteMcpServer(id: string): AppSettings {
   const target = current.mcpServers.find((s) => s.id === id);
   if (!target || target.builtin) return current;
   current.mcpServers = current.mcpServers.filter((s) => s.id !== id);
+  save(current);
+  return current;
+}
+
+export function getWebSearch(): WebSearchConfig | null {
+  return load().webSearch ?? null;
+}
+
+export function setWebSearch(config: WebSearchConfig | null): AppSettings {
+  const current = load();
+  current.webSearch = config ?? undefined;
   save(current);
   return current;
 }

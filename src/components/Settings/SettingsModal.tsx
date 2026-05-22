@@ -12,6 +12,7 @@ import { ProviderDetail } from './ProviderDetail';
 import { ProviderList } from './ProviderList';
 import { SelectionSection } from './SelectionSection';
 import { SkillsSection } from './SkillsSection';
+import { WebSearchSection } from './WebSearchSection';
 
 export function SettingsModal() {
   const open = useUiStore((s) => s.settingsOpen);
@@ -146,6 +147,14 @@ export function SettingsModal() {
             >
               <SelectionIcon />
             </SidebarItem>
+            <SidebarItem
+              label="网络搜索"
+              active={section === 'web-search'}
+              collapsed={navCollapsed}
+              onClick={() => openSettings('web-search')}
+            >
+              <WebSearchIcon />
+            </SidebarItem>
           </div>
           <button
             type="button"
@@ -172,6 +181,7 @@ export function SettingsModal() {
         {section === 'skills' && <SkillsSection />}
         {section === 'mcp' && <McpSection />}
         {section === 'general' && <GeneralSection />}
+        {section === 'web-search' && <WebSearchSection />}
 
         <button
           type="button"
@@ -402,6 +412,16 @@ function CloseIcon() {
       strokeLinecap="round"
     >
       <path d="M3 3l8 8M11 3l-8 8" />
+    </svg>
+  );
+}
+
+function WebSearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="7.5" cy="7.5" r="4.5" />
+      <path d="M13.5 13.5l-2.5-2.5" />
+      <path d="M7.5 5v5M5 7.5h5" />
     </svg>
   );
 }

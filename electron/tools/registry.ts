@@ -2,7 +2,7 @@ import type { Tool } from './types';
 import type { ToolSchema } from '../providers/types';
 import { listDirTool, readFileTool, writeFileTool } from './fs';
 import { execShellTool } from './shell';
-import { webFetchTool } from './web';
+import { webFetchTool, webSearchTool } from './web';
 
 const BUILTIN_TOOLS: Tool[] = [
   readFileTool,
@@ -10,6 +10,7 @@ const BUILTIN_TOOLS: Tool[] = [
   listDirTool,
   execShellTool,
   webFetchTool,
+  webSearchTool,
 ];
 
 const tools: Tool[] = [...BUILTIN_TOOLS];
