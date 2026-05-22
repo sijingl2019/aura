@@ -28,7 +28,7 @@ import { startDifyKnowledgeMcpServer } from './mcp/dify-knowledge';
 import { SkillStore } from './skills/loader';
 import { createSkillsTools } from './skills/tools';
 import { registerTools } from './tools/registry';
-import { initMemoryStore } from './memory/store';
+import { initMemoryStore, readMemoryFile } from './memory/store';
 import { createMemoryTools } from './memory/tools';
 import { toggleQuickQuestionWindow } from './windows/quickQuestionWindow';
 
@@ -217,6 +217,10 @@ function updateGlobalShortcuts(): void {
 }
 
 ipcMain.handle('app:ping', () => 'pong from main');
+ipcMain.handle('memory:read', () => ({
+  facts: readMemoryFile('facts'),
+  profile: readMemoryFile('profile'),
+}));
 
 ipcMain.handle('window:minimize', () => mainWindow?.minimize());
 ipcMain.handle('window:toggle-maximize', () => {

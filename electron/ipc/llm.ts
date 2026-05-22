@@ -4,6 +4,7 @@ import { abortRun, newStreamId, run } from '../agent/runtime';
 import { getSettings, resolveProvider } from '../config/store';
 import { appendMessage, getConversation, listMessages, renameConversation } from '../db/repo';
 import type { SkillStore } from '../skills/loader';
+import { listTools } from '../tools/registry';
 import { workspaceStore } from '../workspace/store';
 
 export function registerLlmIpc(deps: { skills: SkillStore }): void {
@@ -105,4 +106,8 @@ export function registerLlmIpc(deps: { skills: SkillStore }): void {
   ipcMain.handle('llm:abort', (_e, params: { streamId: string }) => {
     abortRun(params.streamId);
   });
+
+  ipcMain.handle('llm:listTools', () =>
+    listTools().map((t) => ({ name: t.name, description: t.description })),
+  );
 }

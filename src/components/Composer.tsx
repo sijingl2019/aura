@@ -4,11 +4,28 @@ import { abortStream, sendMessage } from '@/lib/ipc';
 import { useStreamingStore } from '@/stores/streaming';
 import { useConversationsStore } from '@/stores/conversations';
 import { useSettingsStore } from '@/stores/settings';
+import { useUiStore } from '@/stores/ui';
 import { ModelSwitcher } from './ModelSwitcher';
+
+interface SlashCmd {
+  id: string;
+  name: string;
+  hint: string;
+}
+
+const SLASH_COMMANDS: SlashCmd[] = [
+  { id: '__clear',  name: 'clear',  hint: '开始新对话' },
+  { id: '__abort',  name: 'abort',  hint: '中止当前生成' },
+  { id: '__model',  name: 'model',  hint: '切换默认模型' },
+  { id: '__memory', name: 'memory', hint: '查看 AI 记忆' },
+  { id: '__tools',  name: 'tools',  hint: '查看可用工具' },
+  { id: '__help',   name: 'help',   hint: '显示所有命令' },
+];
 
 interface ComposerProps {
   conversationId: string | null;
   onNeedConversation: () => Promise<string>;
+  onNewConversation?: () => void;
 }
 
 // Find the active @ token before the cursor position.
@@ -31,13 +48,14 @@ function parseAtQuery(query: string): { dir: string; nameFilter: string } {
   return { dir: '', nameFilter: query };
 }
 
-export function Composer({ conversationId, onNeedConversation }: ComposerProps) {
+export function Composer({ conversationId, onNeedConversation, onNewConversation }: ComposerProps) {
   const [input, setInput] = useState('');
   const [skills, setSkills] = useState<SkillListItem[]>([]);
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
   const [skillHighlight, setSkillHighlight] = useState(0);
   const [pendingModel, setPendingModel] = useState<DefaultModelRef | null>(null);
+  const [cmdOutput, setCmdOutput] = useState<{ title: string; body: string } | null>(null);
 
   const [cwd, setCwd] = useState('');
   const [filePickerOpen, setFilePickerOpen] = useState(false);
@@ -89,12 +107,61 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
         (s) => !skillQuery || s.name.toLowerCase().includes(skillQuery) || s.id.toLowerCase().includes(skillQuery),
       )
     : [];
+  const filteredCmds = skillPickerOpen
+    ? SLASH_COMMANDS.filter(
+        (c) => !skillQuery || c.name.startsWith(skillQuery) || c.hint.includes(skillQuery),
+      )
+    : [];
+  // Combined list: commands first, then skills — skillHighlight indexes into this
+  const allPickerItems: Array<{ id: string; name: string; hint: string; isCmd: boolean }> = [
+    ...filteredCmds.map((c) => ({ ...c, isCmd: true })),
+    ...filteredSkills.map((s) => ({ id: s.id, name: s.name, hint: s.description, isCmd: false })),
+  ];
 
   const pickSkill = (id: string) => {
     setActiveSkillId(id);
     setSkillPickerOpen(false);
     setInput('');
     textareaRef.current?.focus();
+  };
+
+  const executeCmd = async (id: string) => {
+    setSkillPickerOpen(false);
+    setSkillHighlight(0);
+    setInput('');
+    textareaRef.current?.focus();
+    switch (id) {
+      case '__clear':
+        onNewConversation?.();
+        break;
+      case '__abort':
+        await abortStream();
+        break;
+      case '__model':
+        useUiStore.getState().openSettings('default-model');
+        break;
+      case '__memory': {
+        const mem = await window.api.memory.read();
+        const parts: string[] = [];
+        if (mem.facts) parts.push(`**项目记忆（MEMORY.md）**\n${mem.facts}`);
+        else parts.push('项目记忆为空');
+        if (mem.profile) parts.push(`**用户记忆（USER.md）**\n${mem.profile}`);
+        else parts.push('用户记忆为空');
+        setCmdOutput({ title: '/memory — AI 记忆', body: parts.join('\n\n') });
+        break;
+      }
+      case '__tools': {
+        const tools = await window.api.llm.listTools();
+        const body = tools.map((t) => `**${t.name}**\n  ${t.description}`).join('\n\n');
+        setCmdOutput({ title: `/tools — 可用工具（${tools.length} 个）`, body });
+        break;
+      }
+      case '__help': {
+        const body = SLASH_COMMANDS.map((c) => `**/${c.name}** — ${c.hint}`).join('\n');
+        setCmdOutput({ title: '/help — 可用命令', body });
+        break;
+      }
+    }
   };
 
   const closeSkillPicker = () => {
@@ -193,8 +260,9 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
   // ── Input handler ─────────────────────────────────────────────────────────
   const handleInput = (value: string) => {
     setInput(value);
+    if (cmdOutput) setCmdOutput(null); // dismiss output card on new input
 
-    // / skill picker
+    // / skill / command picker
     if (value === '/' || (value.startsWith('/') && !value.includes(' '))) {
       setSkillPickerOpen(true);
       setSkillHighlight(0);
@@ -216,11 +284,17 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
   // ── Keyboard handler ──────────────────────────────────────────────────────
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (skillPickerOpen) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setSkillHighlight((i) => Math.min(i + 1, filteredSkills.length - 1)); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSkillHighlight((i) => Math.min(i + 1, allPickerItems.length - 1)); return; }
       if (e.key === 'ArrowUp')   { e.preventDefault(); setSkillHighlight((i) => Math.max(i - 1, 0)); return; }
-      if (e.key === 'Enter')     { e.preventDefault(); if (filteredSkills[skillHighlight]) pickSkill(filteredSkills[skillHighlight].id); return; }
-      if (e.key === 'Escape')    { e.preventDefault(); closeSkillPicker(); return; }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const item = allPickerItems[skillHighlight];
+        if (item) { if (item.isCmd) void executeCmd(item.id); else pickSkill(item.id); }
+        return;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); closeSkillPicker(); return; }
     }
+    if (cmdOutput && e.key === 'Escape') { e.preventDefault(); setCmdOutput(null); return; }
 
     if (filePickerOpen) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setFileHighlight((i) => Math.min(i + 1, files.length - 1)); return; }
@@ -251,7 +325,7 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
     ? cwd.replace(/^\/Users\/[^/]+/, '~').replace(/^\/home\/[^/]+/, '~')
     : '';
 
-  const anyPickerOpen = skillPickerOpen || filePickerOpen;
+  const anyPickerOpen = skillPickerOpen || filePickerOpen || !!cmdOutput;
 
   return (
     <div className="border-t border-black/5 bg-surface p-4">
@@ -295,32 +369,54 @@ export function Composer({ conversationId, onNeedConversation }: ComposerProps) 
             </div>
           )}
 
-          {/* Skill picker */}
+          {/* Command output card */}
+          {cmdOutput && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-xl bg-surface shadow-lg ring-1 ring-black/5">
+              <div className="flex items-center justify-between border-b border-black/5 px-3 py-2">
+                <span className="text-xs font-medium text-ink">{cmdOutput.title}</span>
+                <button
+                  type="button"
+                  onClick={() => setCmdOutput(null)}
+                  className="text-ink-subtle hover:text-ink"
+                  title="关闭 (Esc)"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="max-h-64 overflow-y-auto whitespace-pre-wrap p-3 font-mono text-[11px] leading-relaxed text-ink">
+                {cmdOutput.body}
+              </div>
+            </div>
+          )}
+
+          {/* Skill / command picker */}
           {skillPickerOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-xl bg-surface shadow-lg ring-1 ring-black/5">
-              {filteredSkills.length > 0 ? (
+              {allPickerItems.length > 0 ? (
                 <div ref={skillPickerRef} className="max-h-56 overflow-y-auto">
-                  {filteredSkills.map((s, i) => (
+                  {allPickerItems.map((item, i) => (
                     <button
-                      key={s.id}
+                      key={item.id}
                       type="button"
-                      onClick={() => pickSkill(s.id)}
+                      onClick={() => item.isCmd ? void executeCmd(item.id) : pickSkill(item.id)}
                       className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
                         i === skillHighlight ? 'bg-accent/10 text-accent' : 'hover:bg-surface-sunken'
                       }`}
                     >
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent/10 text-xs font-bold text-accent">
-                        /
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
+                        item.isCmd ? 'bg-ink/8 text-ink-muted' : 'bg-accent/10 text-accent'
+                      }`}>
+                        {item.isCmd ? '⌘' : '/'}
                       </span>
                       <span className="flex-1 overflow-hidden">
-                        <span className="block font-medium">{s.name}</span>
-                        <span className="block truncate text-xs text-ink-subtle">{s.description}</span>
+                        <span className="block font-medium">{item.isCmd ? `/${item.name}` : item.name}</span>
+                        <span className="block truncate text-xs text-ink-subtle">{item.hint}</span>
                       </span>
                     </button>
                   ))}
                 </div>
               ) : (
-                <div className="px-4 py-3 text-center text-sm text-ink-subtle">没有匹配的 Skill</div>
+                <div className="px-4 py-3 text-center text-sm text-ink-subtle">没有匹配的命令或 Skill</div>
               )}
               <div className="border-t border-black/5 px-3 py-1.5 text-[11px] text-ink-subtle">
                 ↑↓ 选择 &nbsp;·&nbsp; Enter 确认 &nbsp;·&nbsp; Esc 关闭

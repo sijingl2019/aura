@@ -34,7 +34,11 @@ export function ChatRoute() {
           </div>
         </div>
       )}
-      <Composer conversationId={id ?? null} onNeedConversation={handleNeedConversation} />
+      <Composer
+        conversationId={id ?? null}
+        onNeedConversation={handleNeedConversation}
+        onNewConversation={() => navigate('/')}
+      />
     </div>
   );
 }

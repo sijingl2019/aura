@@ -108,10 +108,25 @@ export interface LlmStreamParams {
   skillName?: string;
 }
 
+export interface ToolInfo {
+  name: string;
+  description: string;
+}
+
+export interface MemoryReadResult {
+  facts: string;
+  profile: string;
+}
+
+export interface MemoryAPI {
+  read: () => Promise<MemoryReadResult>;
+}
+
 export interface LlmAPI {
   stream: (params: LlmStreamParams) => Promise<{ streamId: string }>;
   abort: (params: { streamId: string }) => Promise<void>;
   onEvent: (cb: (event: StreamEvent) => void) => () => void;
+  listTools: () => Promise<ToolInfo[]>;
 }
 
 export interface SkillListItem {
@@ -369,6 +384,7 @@ export interface ElectronAPI {
   window: WindowAPI;
   db: DbAPI;
   llm: LlmAPI;
+  memory: MemoryAPI;
   skills: SkillsAPI;
   settings: SettingsAPI;
   popup: PopupAPI;

@@ -11,6 +11,7 @@ import type {
   GeneralConfig,
   LlmStreamParams,
   McpServerConfig,
+  MemoryReadResult,
   PopupParams,
   PopupStreamEvent,
   ProviderConfigInput,
@@ -21,6 +22,7 @@ import type {
   SkillListItem,
   StreamEvent,
   ToolbarParams,
+  ToolInfo,
   WebSearchConfig,
   WorkspaceFile,
 } from '@shared/types';
@@ -68,6 +70,10 @@ const api = {
       ipcRenderer.on('llm:event', listener);
       return () => ipcRenderer.off('llm:event', listener);
     },
+    listTools: () => ipcRenderer.invoke('llm:listTools') as Promise<ToolInfo[]>,
+  },
+  memory: {
+    read: () => ipcRenderer.invoke('memory:read') as Promise<MemoryReadResult>,
   },
   skills: {
     list: () => ipcRenderer.invoke('skills:list') as Promise<SkillListItem[]>,
